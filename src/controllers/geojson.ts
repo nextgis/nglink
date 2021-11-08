@@ -13,9 +13,15 @@ const geojson: RequestHandler = async (req: Request, res) => {
   }
   try {
     const getReq = await axios(u);
-    return res.status(200).send({
-      geojson: getReq.data,
-    });
+    const geojson = getReq.data;
+    if (isGeoJson(geojson)) {
+      return res.status(200).send({
+        geojson,
+        type: typeof getReq.data,
+      });
+    } else {
+      throw new Error('Is not valid GeoJSON');
+    }
   } catch (er) {
     logger.error(er);
     return res.status(404).send({
@@ -23,5 +29,17 @@ const geojson: RequestHandler = async (req: Request, res) => {
     });
   }
 };
+
+function isGeoJson(str: string) {
+  try {
+    const json = JSON.parse(str);
+    if ('type' in json) {
+      return true;
+    }
+  } catch {
+    //
+  }
+  return false;
+}
 
 export default geojson;
