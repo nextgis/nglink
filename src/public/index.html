@@ -37,6 +37,7 @@
     </style>
     <script src="https://unpkg.com/@nextgis/ngw-mapbox@1.9.3/lib/ngw-mapbox.global.prod.js"></script>
     <script src="https://unpkg.com/@nextgis/dialog@1.8.4/lib/dialog.global.prod.js"></script>
+    <script src="https://unpkg.com/@nextgis/url-runtime-params@1.9.2/lib/url-runtime-params.global.prod.js"></script>
   </head>
 
   <body>
@@ -54,9 +55,6 @@
     </div>
     <div id="map" class="hidden"></div>
     <script>
-      const queryString = window.location.search;
-      const urlParams = new URLSearchParams(queryString);
-      const url = urlParams.get('u');
 
       const loadingBlock = document.getElementById('loading-block');
       const inputBlock = document.getElementById('input-block');
@@ -65,6 +63,9 @@
       const errorBlock = document.getElementById('error-block');
       const mapBlock = document.getElementById('map');
       const appBlock = document.getElementById('app');
+
+      const urlRuntime = new UrlRuntimeParams();
+      const url = urlRuntime.get('u');
 
       let ngwMap;
 
@@ -91,6 +92,7 @@
         if (ngwMap) {
           ngwMap.destroy();
         }
+        urlRuntime.remove('u');
         hide(loadingBlock);
         hide(mapBlock);
         show(app);
@@ -135,7 +137,7 @@
           osm: true,
         }).then((ngwMap_) => {
           ngwMap = ngwMap_;
-
+          urlRuntime.set('u', url);
           ngwMap.addControl('BUTTON', 'top-left', {
             html: 'U',
             title: 'Insert new URL',

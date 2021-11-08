@@ -30,9 +30,14 @@ const geojson: RequestHandler = async (req: Request, res) => {
   }
 };
 
-function isGeoJson(str: string) {
+function isGeoJson(val: unknown) {
   try {
-    const json = JSON.parse(str);
+    const json =
+      typeof val === 'object'
+        ? val
+        : typeof val === 'string'
+        ? JSON.parse(val)
+        : {};
     if ('type' in json) {
       return true;
     }
