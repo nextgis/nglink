@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <title>NextGIS Link</title>
+    <style>
+      html,
+      body,
+      #map {
+        margin: 0;
+        padding: 0;
+      }
+
+      #app {
+        margin: 10px;
+      }
+
+      #error-block {
+        color: red;
+      }
+
+      html,
+      body,
+      #map {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+    <script src="https://unpkg.com/@nextgis/ngw-mapbox@1.9.3/lib/ngw-mapbox.global.prod.js"></script>
+    <script src="https://unpkg.com/@nextgis/dialog@1.8.4/lib/dialog.global.prod.js"></script>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="loading-block">Loading</div>
+      <div id="input-block" class="hidden">
+        <h4>Paste the geojson data link to see it on the map</h4>
+        <input
+          id="url-input"
+          value="https://data.nextgis.com/order/d6edd701/geometry/"
+        />
+        <button id="show-geojson-btn">Show</button>
+      </div>
+      <p id="error-block" class="hidden">Error!</p>
+    </div>
+    <div id="map" class="hidden"></div>
+    <script>
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+      const url = urlParams.get('u');
+
+      const loadingBlock = document.getElementById('loading-block');
+      const inputBlock = document.getElementById('input-block');
+      const urlInput = document.getElementById('url-input');
+      const showGeojsonBtn = document.getElementById('show-geojson-btn');
+      const errorBlock = document.getElementById('error-block');
+      const mapBlock = document.getElementById('map');
+      const appBlock = document.getElementById('app');
+
+      let ngwMap;
+
+      if (url) {
+        fetchData(url);
+      } else {
+        showInput();
+        showGeojsonBtn.addEventListener('click', () => {
+          const val = urlInput.value;
+          if (val) {
+            fetchData(val);
+          }
+        });
+      }
+
+      function hide(el) {
+        el.classList.add('hidden');
+      }
+      function show(el) {
+        el.classList.remove('hidden');
+      }
+
+      function showInput() {
+        if (ngwMap) {
+          ngwMap.destroy();
+        }
+        hide(loadingBlock);
+        hide(mapBlock);
+        show(app);
+        show(inputBlock);
+      }
+
+      function showLoading() {
+        hide(inputBlock);
+        hide(errorBlock);
+        show(app);
+        show(loadingBlock);
+      }
+
+      function fetchData(url) {
+        showLoading();
+        fetch('/g?u=' + encodeURI(url))
+          .then((resp) => {
+            if (resp.status === 200) {
+              resp.json().then((data) => {
+                hide(loadingBlock);
+                if (data.geojson) {
+                  showMap(data.geojson, url);
+                } else {
+                  throw new Error();
+                }
+              });
+            } else {
+              throw new Error();
+            }
+          })
+          .catch((er) => {
+            show(errorBlock);
+            showInput();
+          });
+      }
+
+      function showMap(geojson, url) {
+        show(mapBlock);
+        hide(appBlock);
+        NgwMap.create({
+          target: mapBlock,
+          osm: true,
+        }).then((ngwMap_) => {
+          ngwMap = ngwMap_;
+
+          ngwMap.addControl('BUTTON', 'top-left', {
+            html: 'U',
+            title: 'Insert new URL',
+            onClick: function (a) {
+              urlInput.value = '';
+              showInput();
+            },
+          });
+
+          ngwMap.addControl('BUTTON', 'top-left', {
+            html: 'S',
+            title: 'Share URL',
+            onClick: function (a) {
+              const dialog = new Dialog();
+              dialog.updateContent(`${location.origin}\?u=${url}`);
+              dialog.show();
+            },
+          });
+
+          ngwMap.addGeoJsonLayer({
+            data: geojson,
+            fit: true,
+            paint: { color: 'blue' },
+            selectedPaint: {
+              color: 'orange',
+              fillOpacity: 0.8,
+              strokeOpacity: 1,
+            },
+            selectable: true,
+            popupOnSelect: true,
+            popupOptions: {
+              createPopupContent: (e) => {
+                const element = document.createElement('table');
+
+                element.innerHTML = '<tbody>';
+                Object.entries(e.feature.properties).forEach(([key, value]) => {
+                  element.innerHTML +=
+                    '<tr><th>' + key + '</th><td>' + value + '</td></tr>';
+                });
+                element.innerHTML += '</tbody>';
+                return element;
+              },
+            },
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
