@@ -1,0 +1,50 @@
+{
+  "name": "nglink-front",
+  "private": "true",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.html",
+  "scripts": {
+    "start": "webpack serve --mode development --open",
+    "build": "webpack --progress",
+    "watch": "rimraf ./dist && npm run build -- --watch",
+    "dev": "rimraf ./dist && npm run build",
+    "prod": "rimraf ./dist && npm run build -- --mode=production"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@nextgis/dialog": "^1.11.0",
+    "@nextgis/ngw-mapbox": "^1.11.3",
+    "@nextgis/url-runtime-params": "^1.11.0",
+    "colors": "^1.4.0",
+    "core-js": "^3.20.2",
+    "regenerator-runtime": "^0.13.9"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.16.7",
+    "@babel/plugin-proposal-decorators": "^7.16.7",
+    "@babel/preset-env": "^7.16.7",
+    "@babel/preset-typescript": "^7.16.7",
+    "@nextgis/eslint-config": "^1.8.4",
+    "@types/node": "^17.0.8",
+    "babel-loader": "^8.2.3",
+    "css-loader": "^6.5.1",
+    "eslint-webpack-plugin": "^3.1.1",
+    "favicons": "^6.2.2",
+    "favicons-webpack-plugin": "^5.0.2",
+    "fork-ts-checker-webpack-plugin": "^6.5.0",
+    "html-loader": "^3.1.0",
+    "html-webpack-plugin": "^5.5.0",
+    "image-webpack-loader": "^8.0.1",
+    "mini-css-extract-plugin": "^2.4.6",
+    "node-sass": "^7.0.1",
+    "sass-loader": "^12.4.0",
+    "style-loader": "^3.3.1",
+    "typescript": "^4.5.4",
+    "webpack": "^5.65.0",
+    "webpack-bundle-analyzer": "^4.5.0",
+    "webpack-cli": "^4.9.1",
+    "webpack-dev-server": "^4.7.2"
+  }
+}

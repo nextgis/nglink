@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <title>NextGIS Link</title>
+    <style>
+      html,
+      body,
+      #map {
+        margin: 0;
+        padding: 0;
+      }
+
+      #app {
+        margin: 10px;
+      }
+
+      #error-block {
+        color: red;
+      }
+
+      html,
+      body,
+      #map {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="loading-block">Loading</div>
+      <div id="input-block" class="hidden">
+        <h4>Paste GeoJSON or WKT data or a link to them to see the geometry on the map</h4>
+        <textarea id="url-input" value="" type="text"> </textarea>
+        <button id="show-data-btn">Show</button>
+      </div>
+      <p id="error-block" class="hidden">Error!</p>
+    </div>
+    <div id="map" class="hidden"></div>
+    <script></script>
+  </body>
+</html>

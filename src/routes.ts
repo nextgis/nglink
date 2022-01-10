@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import geojson from './controllers/geojson';
+import detectFormat from './controllers/detectFormat';
 
 const router = Router();
 
-router.get('/g', geojson);
+router.get('/d', detectFormat);
 
 export default router;

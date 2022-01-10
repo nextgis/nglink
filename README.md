@@ -10,8 +10,18 @@ npm i
 npm run dev-server
 ```
 
+### Front
+
+```bash
+cd ./front
+npm i
+npm run prod
+# or for development
+npm run watch
+```
+
 ## Docker
 
-docker build -t registry.nextgis.com/nglink:latest . && docker push registry.nextgis.com/nglink:latest
+docker build -t nglink:latest .
 
-docker run -it -p 3000:3000 --rm --name nglink registry.nextgis.com/nglink:latest
+docker run -it -p 3000:3000 --rm --name nglink nglink:latest

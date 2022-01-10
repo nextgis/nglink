@@ -31,10 +31,14 @@ app.use(logResponseTime);
 app.use(compression());
 
 app.use(
-  express.static(path.join(__dirname, 'public'), { maxAge: 31557600000 }),
+  // express.static(path.join(__dirname, 'public'), { maxAge: 31557600000 }),
+  express.static(path.join(__dirname, '../front/dist'), {
+    maxAge: 31557600000,
+  }),
 );
 
 app.use(routes);
+app.use(compression());
 
 app.use(
   (err: ApplicationError, req: Request, res: Response, next: NextFunction) => {
