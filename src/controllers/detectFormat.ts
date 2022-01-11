@@ -23,7 +23,7 @@ const detectFormat: RequestHandler = async (req: Request, res) => {
         geojson,
       });
     } else {
-      throw new Error('Is not valid GeoJSON');
+      return handleError('Is not valid GeoJSON');
     }
   };
 
@@ -36,13 +36,17 @@ const detectFormat: RequestHandler = async (req: Request, res) => {
 
   if (isUrl(u)) {
     try {
+      const refUrl = new URL(req.get('Referrer'));
+      const dataUrl = new URL(u);
+      if (refUrl.hostname === dataUrl.hostname) {
+        return handleError("You can't refer to yourself");
+      }
       const getReq = await axios(u);
       return makeResp(toGeoJson(getReq.data));
     } catch (er) {
       return handleError(er);
     }
   } else {
-    console.log(u);
     return makeResp(toGeoJson(u));
   }
 };
