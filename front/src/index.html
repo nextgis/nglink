@@ -23,7 +23,7 @@
         margin: 10px;
       }
 
-      #error-block {
+      .error-block {
         color: red;
       }
 
@@ -47,17 +47,109 @@
       }
       #data-input {
         resize: vertical;
-        max-height: 200px;
-        width: 500px;
+        max-height: 10rem;
+        min-height: 1rem;
+        width: 600px;
+      }
+      #show-data-btn {
+        margin-top: 0.5rem;
       }
       .subtitle {
         margin-top: 0.1rem;
       }
-      #error-block-title {
+      .error-block-title {
         font-weight: bold;
       }
-      #error-block-detail {
+      .error-block-detail {
         font-size: 12pt;
+      }
+      .icon__svg {
+        height: 24px;
+        width: 24px;
+        fill: currentColor;
+      }
+      .dialog-component__close {
+        float: right;
+      }
+
+      #drop-area {
+        width: 600px;
+        margin: 1rem auto;
+        padding: 20px 0;
+        border-radius: 20px;
+        border: 2px dashed #ccc;
+      }
+      #drop-area.highlight {
+        border-color: #176fc1;
+      }
+      p {
+        margin-top: 0;
+      }
+      .upload-form {
+        margin-bottom: 10px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px;
+        background: #ccc;
+        cursor: pointer;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+      .button.success {
+        background-color: #176fc1;
+        color: white;
+      }
+      .button.error {
+        background-color: #c11717;
+        color: white;
+      }
+      .button:hover {
+        background: #ddd;
+      }
+      .button.success:hover {
+        background-color: #176fc1;
+      }
+      .button.error:hover {
+        background-color: #c11717;
+      }
+      #file-upload {
+        display: none;
+      }
+
+      .share-input {
+        width: 100%;
+        line-height: 1.5rem;
+      }
+
+      .get-short-link,
+      .copy-url {
+        margin-top: 1rem;
+      }
+      .copy-url {
+        float: right;
+      }
+
+      .dialog-component {
+        width: 700px;
+        line-height: 1.3rem;
+      }
+      .dialog-component .error-block {
+        padding-top: 1rem;
+      }
+
+      @media screen and (max-width: 700px) {
+        #data-input {
+          resize: vertical;
+          max-height: 100px;
+          width: 90%;
+        }
+        #drop-area {
+          width: 90%;
+        }
+        .dialog-component {
+          width: 90%;
+        }
       }
     </style>
   </head>
@@ -66,20 +158,28 @@
     <div id="app">
       <div id="logo">
         <img src="./images/logo.svg" alt="NextGIS" />
-        <p class="subtitle">LINK</p>
+        <h3 class="subtitle">LINK</h3>
       </div>
       <div id="loading-block">Loading</div>
       <div id="input-block" class="hidden">
-        <h4>
+        <p>
           Paste GeoJSON or WKT data or a link to them to see the geometry on the
           map
-        </h4>
+        </p>
         <div><textarea id="data-input" value="" type="text"></textarea></div>
-        <div><button id="show-data-btn">Show</button></div>
+        <div><button id="show-data-btn" class="button">SHOW</button></div>
+        <h4>OR</h4>
+        <div id="drop-area">
+          <div class="upload-form">
+            <p>Upload GeoJSON</p>
+            <input type="file" id="file-upload" accept=".geojson" />
+            <label class="button" for="file-upload">SELECT FILE</label>
+          </div>
+        </div>
       </div>
-      <div id="error-block" class="hidden">
-        <p id="error-block-title">ERROR!</p>
-        <p id="error-block-detail"></p>
+      <div id="error-block" class="hidden error-block">
+        <p id="error-block-title" class="error-block-title">ERROR!</p>
+        <p id="error-block-detail" class="error-block-detail"></p>
       </div>
     </div>
     <div id="map" class="hidden"></div>

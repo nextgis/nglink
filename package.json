@@ -16,11 +16,15 @@
     "fix-lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts --fix"
   },
   "dependencies": {
+    "@nextgis/ngw-connector": "^1.11.3",
+    "@nextgis/ngw-kit": "^1.11.3",
+    "@nextgis/ngw-uploader": "^1.11.6",
     "@types/geojson": "^7946.0.8",
     "@types/wellknown": "^0.5.1",
     "axios": "^0.24.0",
     "dotenv": "10.0.0",
     "express": "4.17.2",
+    "nanoid": "^3.1.31",
     "wellknown": "^0.5.0",
     "winston": "3.3.4",
     "winston-transport": "4.4.2"

@@ -26,6 +26,14 @@ function logResponseTime(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+//Here we are configuring express to use body-parser as middle-ware.
+app.use(express.json({ limit: '15mb' }));
+app.use(
+  express.urlencoded({
+    extended: true,
+  }),
+);
+
 app.use(logResponseTime);
 
 app.use(compression());

@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mdi/js": "^6.5.95",
     "@nextgis/dialog": "^1.11.0",
     "@nextgis/ngw-mapbox": "^1.11.3",
     "@nextgis/url-runtime-params": "^1.11.0",

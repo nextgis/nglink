@@ -1,8 +1,9 @@
 import { Request, RequestHandler } from 'express';
-
 import axios from 'axios';
-import logger from '../logger';
+import NgwConnector from '@nextgis/ngw-connector';
+import { fetchNgwLayerFeatureCollection } from '@nextgis/ngw-kit';
 
+import { handleError } from '../utils/handleError';
 import { isUrl } from '../utils/isUrl';
 import { toGeoJson } from '../utils/toGeoJson';
 
@@ -17,21 +18,19 @@ const detectFormat: RequestHandler = async (req: Request, res) => {
     });
   }
   u = u.trim();
-  const makeResp = (geojson: GeoJSON | false) => {
+  const makeResp = (geojson: GeoJSON | false, link = false) => {
     if (geojson) {
       return res.status(200).send({
         geojson,
+        link,
       });
     } else {
-      return handleError('Is not valid GeoJSON');
+      return error('Is not valid GeoJSON');
     }
   };
 
-  const handleError = (er: unknown) => {
-    logger.error(er);
-    return res.status(404).send({
-      error: er,
-    });
+  const error = (er: unknown) => {
+    return handleError(res, er);
   };
 
   if (isUrl(u)) {
@@ -39,13 +38,33 @@ const detectFormat: RequestHandler = async (req: Request, res) => {
       const refUrl = new URL(req.get('Referrer'));
       const dataUrl = new URL(u);
       if (refUrl.hostname === dataUrl.hostname) {
-        return handleError("You can't refer to yourself");
+        return error("You can't refer to yourself");
       }
       const getReq = await axios(u);
       return makeResp(toGeoJson(getReq.data));
     } catch (er) {
-      return handleError(er);
+      return error(er);
     }
+  } else if (u.length === 8) {
+    const connector = new NgwConnector({
+      baseUrl: process.env.NGW_URL,
+      auth: {
+        login: process.env.NGW_LOGIN,
+        password: process.env.NGW_PASSWORD,
+      },
+    });
+    return connector
+      .getResourceIdOrFail(u)
+      .then((resourceId) => {
+        return fetchNgwLayerFeatureCollection({ connector, resourceId }).then(
+          (g) => {
+            return makeResp(g, true);
+          },
+        );
+      })
+      .catch(() => {
+        return error('Vector data cannot be restored by reference');
+      });
   } else {
     return makeResp(toGeoJson(u));
   }
