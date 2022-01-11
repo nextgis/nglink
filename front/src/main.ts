@@ -1,17 +1,22 @@
 import './style.css';
+
 import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-mapbox';
 
 import type { GeoJSON } from 'geojson';
+import { ApiError } from './interfaces';
 
 const loadingBlock = document.getElementById('loading-block') as HTMLElement;
 const inputBlock = document.getElementById('input-block') as HTMLElement;
-const urlInput = document.getElementById('url-input') as HTMLInputElement;
+const dataInput = document.getElementById('data-input') as HTMLInputElement;
 const showDataBtn = document.getElementById(
   'show-data-btn',
 ) as HTMLButtonElement;
 const errorBlock = document.getElementById('error-block') as HTMLElement;
+const errorBlockDetail = document.getElementById(
+  'error-block-detail',
+) as HTMLElement;
 const mapBlock = document.getElementById('map') as HTMLElement;
 const appBlock = document.getElementById('app') as HTMLElement;
 
@@ -25,7 +30,7 @@ if (url) {
 } else {
   showInput();
   showDataBtn.addEventListener('click', () => {
-    const val = urlInput.value;
+    const val = dataInput.value;
     if (val) {
       fetchData(val);
     }
@@ -44,7 +49,8 @@ function showInput() {
     ngwMap.destroy();
   }
   urlRuntime.remove('u');
-  hide(loadingBlock);
+  hideLoading();
+  hideError();
   hide(mapBlock);
   show(appBlock);
   show(inputBlock);
@@ -52,31 +58,48 @@ function showInput() {
 
 function showLoading() {
   hide(inputBlock);
-  hide(errorBlock);
+  hideError();
   show(appBlock);
   show(loadingBlock);
+}
+
+function hideLoading() {
+  hide(loadingBlock);
+}
+
+function showError(er: ApiError) {
+  if (er.error) {
+    errorBlockDetail.innerHTML = er.error;
+  }
+  show(errorBlock);
+}
+
+function hideError() {
+  errorBlockDetail.innerHTML = '';
+  hide(errorBlock);
 }
 
 function fetchData(url: string) {
   showLoading();
   fetch('/d?u=' + encodeURI(url))
     .then((resp) => {
-      if (resp.status === 200) {
-        resp.json().then((data) => {
-          hide(loadingBlock);
+      resp.json().then((data) => {
+        if (resp.status === 200) {
+          hideLoading();
           if (data.geojson) {
             showMap(data.geojson, url);
           } else {
             throw new Error();
           }
-        });
-      } else {
-        throw new Error();
-      }
+        } else {
+          showInput();
+          showError(data);
+        }
+      });
     })
-    .catch(() => {
-      show(errorBlock);
+    .catch((er: ApiError) => {
       showInput();
+      showError(er);
     });
 }
 
@@ -93,7 +116,7 @@ function showMap(geojson: GeoJSON, url: string) {
       html: 'U',
       title: 'Insert new URL',
       onClick: () => {
-        urlInput.value = '';
+        dataInput.value = '';
         showInput();
       },
     });

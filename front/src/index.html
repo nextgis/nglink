@@ -8,6 +8,10 @@
     />
     <title>NextGIS Link</title>
     <style>
+      * {
+        font-family: 'Arial', sans-serif;
+      }
+
       html,
       body,
       #map {
@@ -34,18 +38,49 @@
       .hidden {
         display: none;
       }
+
+      #app {
+        text-align: center;
+      }
+      #logo {
+        padding: 1rem;
+      }
+      #data-input {
+        resize: vertical;
+        max-height: 200px;
+        width: 500px;
+      }
+      .subtitle {
+        margin-top: 0.1rem;
+      }
+      #error-block-title {
+        font-weight: bold;
+      }
+      #error-block-detail {
+        font-size: 12pt;
+      }
     </style>
   </head>
 
   <body>
     <div id="app">
+      <div id="logo">
+        <img src="./images/logo.svg" alt="NextGIS" />
+        <p class="subtitle">LINK</p>
+      </div>
       <div id="loading-block">Loading</div>
       <div id="input-block" class="hidden">
-        <h4>Paste GeoJSON or WKT data or a link to them to see the geometry on the map</h4>
-        <textarea id="url-input" value="" type="text"> </textarea>
-        <button id="show-data-btn">Show</button>
+        <h4>
+          Paste GeoJSON or WKT data or a link to them to see the geometry on the
+          map
+        </h4>
+        <div><textarea id="data-input" value="" type="text"></textarea></div>
+        <div><button id="show-data-btn">Show</button></div>
       </div>
-      <p id="error-block" class="hidden">Error!</p>
+      <div id="error-block" class="hidden">
+        <p id="error-block-title">ERROR!</p>
+        <p id="error-block-detail"></p>
+      </div>
     </div>
     <div id="map" class="hidden"></div>
     <script></script>
