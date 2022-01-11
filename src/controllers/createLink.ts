@@ -1,5 +1,5 @@
-import { Request, RequestHandler } from 'express';
 import { nanoid } from 'nanoid';
+import { Request, RequestHandler } from 'express';
 import NgwUploader from '@nextgis/ngw-uploader';
 
 import { handleError } from '../utils/handleError';
