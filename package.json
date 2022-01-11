@@ -1,7 +1,7 @@
 {
   "name": "nglink",
   "private": "true",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Show geojson from url param",
   "author": "NextGIS",
   "main": "dist/index.js",
