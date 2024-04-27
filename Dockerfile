@@ -1,4 +1,4 @@
-FROM node:alpine as base
+FROM node:20-alpine as base
 
 # Add package file
 COPY package*.json ./
@@ -14,7 +14,7 @@ COPY tsconfig.json ./tsconfig.json
 RUN npm run build
 
 
-FROM node:alpine as front
+FROM node:20-alpine as front
 
 COPY ./front/package.json ./front/package-lock.json ./
 RUN npm i
@@ -22,7 +22,7 @@ COPY ./front ./
 RUN npm run prod
 
 # Start production image build
-FROM gcr.io/distroless/nodejs:16
+FROM gcr.io/distroless/nodejs20-debian12
 
 # Copy node modules and build directory
 COPY --from=base ./node_modules ./node_modules
