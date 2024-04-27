@@ -6,8 +6,8 @@ export function parseGeoJson(val: unknown): GeoJSON | false {
       typeof val === 'object'
         ? val
         : typeof val === 'string'
-        ? JSON.parse(val)
-        : {};
+          ? JSON.parse(val)
+          : {};
     if ('type' in json) {
       return json;
     }
