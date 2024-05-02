@@ -1,9 +1,8 @@
-import './style.css';
 import { mdiRefresh, mdiShare } from '@mdi/js';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-mapbox';
 import UrlRuntimeParams from '@nextgis/url-runtime-params';
-import { Clipboard } from '@nextgis/utils';
+import { Clipboard, debounce } from '@nextgis/utils';
 
 import { makeIcon } from './utils/makeIcon';
 
@@ -28,6 +27,7 @@ const dropArea = document.getElementById('drop-area') as HTMLElement;
 
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
+const color = `#${urlRuntime.get('color')}`;
 
 let ngwMap: NgwMap | undefined;
 
@@ -144,7 +144,8 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
     ngwMap.addGeoJsonLayer({
       data: JSON.parse(JSON.stringify(geojson)),
       fit: true,
-      paint: { color: 'blue' },
+      id: 'layer',
+      paint: { color: color },
       selectedPaint: {
         color: 'orange',
         fillOpacity: 0.8,
@@ -168,18 +169,58 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
         },
       },
     });
+
+    const paintControl = ngwMap.createControl(
+      {
+        onAdd: () => {
+          const elem = document.createElement('div');
+          elem.innerHTML = `
+          <div class="">
+            <input id="fill-color-select" type="color" />
+            <label for="fill-color-select">Fill color</label>
+          </div>
+          `;
+          const fillColorSelect = elem.querySelector(
+            '#fill-color-select',
+          ) as HTMLInputElement;
+
+          fillColorSelect.value = color;
+
+          const updatePaint = debounce(() => {
+            if (ngwMap) {
+              ngwMap.updateLayerPaint('layer', {
+                fillColor: fillColorSelect.value,
+              });
+            }
+          }, 300);
+
+          fillColorSelect.oninput = () => {
+            updatePaint();
+          };
+
+          return elem;
+        },
+        onRemove: () => null,
+      },
+      { bar: true, addClass: 'paint-control' },
+    );
+
+    ngwMap.addControl(paintControl, 'top-right');
   });
 }
 
 function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const elem = document.createElement('div');
   const shortLinkBtnText = 'Get short link';
+  const getImageLinkBtnText = 'Get image link';
   elem.innerHTML = `
   <div><input readonly class="share-input" /></div>
 
-  <div>
+  <img class="map-image img"/>
+  <div class="buttons-panel">
   <button class="get-short-link button">${shortLinkBtnText}</button>
   <button class="copy-url button">Copy URL</button>
+  <button class="get-image-link button">${getImageLinkBtnText}</button>
   </div>
 
   <div class="error-block hidden" >
@@ -190,6 +231,9 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const shareInput = elem.querySelector('.share-input') as HTMLInputElement;
   const getShortLinkBtn = elem.querySelector(
     '.get-short-link ',
+  ) as HTMLButtonElement;
+  const getImageBtn = elem.querySelector(
+    '.get-image-link ',
   ) as HTMLButtonElement;
   const copyUrl = elem.querySelector('.copy-url') as HTMLButtonElement;
   const shareErrorBlock = elem.querySelector(
@@ -269,6 +313,19 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       .catch((er) => {
         onError(er.error);
       });
+
+    getImageBtn.onclick = () => {
+      fetch(`/?u=${url}&width=${400}&height=${200}`).then((resp) => {
+        resp.json().then((data) => {
+          if (resp.status === 200) {
+            const mapImage = elem.querySelector(
+              '.map-image',
+            ) as HTMLImageElement;
+            mapImage.setAttribute('src', data.imageLink);
+          }
+        });
+      });
+    };
   };
 
   return elem;

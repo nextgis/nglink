@@ -40,6 +40,7 @@ app.use(compression());
 
 app.use(
   // express.static(path.join(__dirname, 'public'), { maxAge: 31557600000 }),
+  '/view',
   express.static(path.join(__dirname, '../front/dist'), {
     maxAge: 31557600000,
   }),
