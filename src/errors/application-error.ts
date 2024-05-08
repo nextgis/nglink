@@ -1,7 +1,7 @@
 export default class ApplicationError extends Error {
-  public message: string = 'ApplicationError';
+  public message = 'ApplicationError';
 
-  public status: number = 500;
+  public status = 500;
 
   constructor(message?: string, status?: number) {
     super();

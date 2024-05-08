@@ -15,13 +15,16 @@ export const createLink: RequestHandler = async (req: Request, res) => {
   const name = nanoid(8);
   return uploader
     .uploadVector(
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      { file, name: name + '__' + new Date().getTime() },
-      { parentId: Number(process.env.NGW_UPLOAD_GROUP), keyname: name },
+      { file, name: name },
+      {
+        parentId: Number(process.env.NGW_UPLOAD_GROUP),
+        keyname: name,
+        paint: { color: '#00A', weight: 1, opacity: 1 },
+        addTimestampToName: true,
+      },
     )
     .then(() => {
-      return res.status(201).send({ key: name });
+      return res.status(201).send({ keyname: name });
     })
     .catch(() => {
       return handleError(res, 'Unable to create a link');

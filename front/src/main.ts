@@ -1,14 +1,14 @@
 import './style.css';
 import { mdiRefresh, mdiShare } from '@mdi/js';
-
-import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-mapbox';
+import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import { Clipboard } from '@nextgis/utils';
+
 import { makeIcon } from './utils/makeIcon';
 
-import type { GeoJSON } from 'geojson';
 import type { ApiError } from './interfaces';
+import type { GeoJSON } from 'geojson';
 
 const loadingBlock = document.getElementById('loading-block') as HTMLElement;
 const inputBlock = document.getElementById('input-block') as HTMLElement;
@@ -142,7 +142,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
     });
 
     ngwMap.addGeoJsonLayer({
-      data: geojson,
+      data: JSON.parse(JSON.stringify(geojson)),
       fit: true,
       paint: { color: 'blue' },
       selectedPaint: {
@@ -157,10 +157,12 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
           const element = document.createElement('table');
 
           element.innerHTML = '<tbody>';
-          Object.entries(e.feature.properties).forEach(([key, value]) => {
-            element.innerHTML +=
-              '<tr><th>' + key + '</th><td>' + value + '</td></tr>';
-          });
+          Object.entries(e.feature.properties as any).forEach(
+            ([key, value]) => {
+              element.innerHTML +=
+                '<tr><th>' + key + '</th><td>' + value + '</td></tr>';
+            },
+          );
           element.innerHTML += '</tbody>';
           return element;
         },
@@ -257,8 +259,8 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
         resp.json().then((data) => {
           if (resp.status === 201) {
             onSuccess();
-            urlRuntime.set('u', data.key);
-            setUrl(data.key);
+            urlRuntime.set('u', data.keyname);
+            setUrl(data.keyname);
           } else {
             onError(data.error);
           }
