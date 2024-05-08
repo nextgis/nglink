@@ -1,6 +1,6 @@
 {
   "name": "nglink",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Show geojson from url param",
   "author": "NextGIS",
   "main": "dist/index.js",
@@ -8,7 +8,7 @@
     "build": "tsc",
     "eslint": "eslint src/server.ts",
     "lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts",
-    "docker": "docmypkg -r registry.nextgis.com -l",
+    "docker": "docmypkg -r harbor.nextgis.net -n frontend/nglink -l",
     "dev-server": "cross-env NODE_ENV=development nodemon",
     "ts-node-server": "ts-node src/server.ts",
     "start": "node dist/server.js",
