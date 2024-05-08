@@ -22,14 +22,12 @@ const errorBlockDetail = document.getElementById(
 ) as HTMLElement;
 const mapBlock = document.getElementById('map') as HTMLElement;
 const appBlock = document.getElementById('app') as HTMLElement;
-
 const fileInput = document.getElementById('file-upload') as HTMLInputElement;
 const dropArea = document.getElementById('drop-area') as HTMLElement;
 
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
 const colorInit = `${urlRuntime.get('color') || 'blue'}`;
-
 let ngwMap: NgwMap | undefined;
 
 if (url) {
@@ -44,76 +42,61 @@ if (url) {
   });
 }
 
-function hideBlock(el: HTMLElement) {
-  el.classList.add('hidden');
+function toggleBlock(el: HTMLElement, show: boolean) {
+  el.classList.toggle('hidden', !show);
 }
-function showBlock(el: HTMLElement) {
-  el.classList.remove('hidden');
-}
-
 function showInput() {
-  if (ngwMap) {
-    ngwMap.destroy();
-  }
+  if (ngwMap) ngwMap.destroy();
   urlRuntime.remove('u');
-  hideLoading();
-  hideError();
-  hideBlock(mapBlock);
-  showBlock(appBlock);
-  showBlock(inputBlock);
+  toggleBlock(mapBlock, false);
+  toggleBlock(appBlock, true);
+  toggleBlock(inputBlock, true);
 }
-
 function showLoading() {
-  hideBlock(inputBlock);
-  hideError();
-  showBlock(appBlock);
-  showBlock(loadingBlock);
+  toggleBlock(inputBlock, false);
+  toggleBlock(appBlock, true);
+  toggleBlock(loadingBlock, true);
 }
-
 function hideLoading() {
-  hideBlock(loadingBlock);
+  toggleBlock(loadingBlock, false);
 }
-
 function showError(er: ApiError) {
-  if (er.error) {
-    errorBlockDetail.innerHTML = er.error;
-  }
-  showBlock(errorBlock);
+  errorBlockDetail.innerHTML = er.error || '';
+  toggleBlock(errorBlock, true);
 }
-
 function hideError() {
   errorBlockDetail.innerHTML = '';
-  hideBlock(errorBlock);
+  toggleBlock(errorBlock, false);
 }
 
 // test url https://data.nextgis.com/order/d6edd701/geometry
-function fetchData(url: string) {
+async function fetchData(url: string) {
   showLoading();
-  fetch('/d?u=' + encodeURI(url))
-    .then((resp) => {
-      resp.json().then((data) => {
-        if (resp.status === 200) {
-          hideLoading();
-          if (data.geojson) {
-            showMap(data.geojson, url, data.link);
-          } else {
-            throw new Error();
-          }
-        } else {
-          showInput();
-          showError(data);
-        }
-      });
-    })
-    .catch((er: ApiError) => {
+  try {
+    const response = await fetch('/d?u=' + encodeURIComponent(url));
+    const data = await response.json();
+    if (response.ok) {
+      hideLoading();
+      if (data.geojson) {
+        showMap(data.geojson, url, data.link);
+      } else {
+        throw new Error('No GeoJSON data');
+      }
+    } else {
       showInput();
-      showError(er);
-    });
+      showError(data);
+    }
+  } catch (error) {
+    showInput();
+    showError({ error: 'Unable to fetch data' });
+  }
 }
 
+// Show map function
 function showMap(geojson: GeoJSON, url?: string, link = false) {
-  hideBlock(appBlock);
-  showBlock(mapBlock);
+  toggleBlock(appBlock, false);
+  toggleBlock(mapBlock, true);
+
   NgwMap.create({
     target: mapBlock,
     osm: true,
@@ -135,7 +118,6 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       html: makeIcon(mdiShare),
       title: 'Share URL',
       onClick: () => {
-        // @ts-ignore
         const dialog = new Dialog();
         dialog.updateContent(createShareContent(geojson, url, link));
         dialog.show();
@@ -157,14 +139,11 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       popupOptions: {
         createPopupContent: (e) => {
           const element = document.createElement('table');
-
+          const properties = e.feature.properties || {};
           element.innerHTML = '<tbody>';
-          Object.entries(e.feature.properties as any).forEach(
-            ([key, value]) => {
-              element.innerHTML +=
-                '<tr><th>' + key + '</th><td>' + value + '</td></tr>';
-            },
-          );
+          Object.entries(properties).forEach(([key, value]) => {
+            element.innerHTML += `<tr><th>${key}</th><td>${value}</td></tr>`;
+          });
           element.innerHTML += '</tbody>';
           return element;
         },
@@ -184,21 +163,13 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
           const fillColorSelect = elem.querySelector(
             '#fill-color-select',
           ) as HTMLInputElement;
-
           fillColorSelect.value = Color(colorInit).hex();
-
           const updatePaint = debounce(() => {
-            if (ngwMap) {
-              ngwMap.updateLayerPaint('layer', {
-                fillColor: fillColorSelect.value,
-              });
-            }
+            ngwMap?.updateLayerPaint('layer', {
+              fillColor: fillColorSelect.value,
+            });
           }, 300);
-
-          fillColorSelect.oninput = () => {
-            updatePaint();
-          };
-
+          fillColorSelect.oninput = updatePaint;
           return elem;
         },
         onRemove: () => null,
@@ -216,15 +187,13 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const getImageLinkBtnText = 'Get image';
   elem.innerHTML = `
   <div><input readonly class="share-input" /></div>
-
   <img class="map-image img"/>
   <div class="buttons-panel">
   <button class="get-short-link button">${shortLinkBtnText}</button>
   <button class="copy-url button">Copy URL</button>
-  <button class="get-image-link button">${getImageLinkBtnText}</button>
+  <button class="get-image-link button" style="display: none">${getImageLinkBtnText}</button>
   </div>
-
-  <div class="error-block hidden" >
+  <div class="error-block hidden">
     <span class="error-block-title">ERROR: </span><span class="error-block-detail"></span>
   </div>
   `;
@@ -237,141 +206,120 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     '.get-image-link',
   ) as HTMLButtonElement;
   const copyUrl = elem.querySelector('.copy-url') as HTMLButtonElement;
-  const shareErrorBlock = elem.querySelector(
-    '.error-block',
-  ) as HTMLButtonElement;
+  const shareErrorBlock = elem.querySelector('.error-block') as HTMLDivElement;
   const shareErrorBlockDetail = elem.querySelector(
     '.error-block-detail',
-  ) as HTMLButtonElement;
+  ) as HTMLElement;
 
   const setUrl = (u: string) => {
     shareInput.value = `${location.origin}?u=${u}`;
   };
+  if (url) setUrl(url);
+  if (link) getShortLinkBtn.style.display = 'none';
 
-  if (url) {
-    setUrl(url);
-  }
-
-  if (link) {
-    getShortLinkBtn.style.display = 'none';
-  }
-
-  const startLoading = () => {
-    hideBlock(shareErrorBlock);
-    getShortLinkBtn.innerHTML = 'Loading...';
-    getShortLinkBtn.disabled = true;
+  const startLoading = (btn: HTMLButtonElement) => {
+    btn.disabled = true;
+    btn.innerHTML = 'Loading...';
   };
-  const onSuccess = () => {
-    hideBlock(shareErrorBlock);
-    getShortLinkBtn.innerHTML = 'Link created';
-    getShortLinkBtn.classList.remove('error');
-    getShortLinkBtn.classList.add('success');
-    getShortLinkBtn.disabled = true;
-  };
-  const onError = (er = '') => {
-    getShortLinkBtn.innerHTML = 'Link creation error';
-    getShortLinkBtn.classList.remove('success');
-    getShortLinkBtn.classList.add('error');
-    getShortLinkBtn.disabled = true;
-    showBlock(shareErrorBlock);
-    shareErrorBlockDetail.innerHTML = er;
+  const updateButtonState = (
+    btn: HTMLButtonElement,
+    success: boolean,
+    message: string,
+  ) => {
+    btn.classList.toggle('success', success);
+    btn.classList.toggle('error', !success);
+    btn.innerHTML = message;
+    btn.disabled = true;
     setTimeout(() => {
-      getShortLinkBtn.innerHTML = shortLinkBtnText;
-      getShortLinkBtn.classList.remove('error');
-      getShortLinkBtn.disabled = false;
-    }, 500);
+      btn.classList.remove('success', 'error');
+      btn.innerHTML = success ? 'Link created' : shortLinkBtnText;
+      btn.disabled = false;
+    }, 1000);
+  };
+
+  const showShareError = (message: string) => {
+    shareErrorBlockDetail.innerHTML = message;
+    toggleBlock(shareErrorBlock, true);
   };
 
   copyUrl.onclick = () => {
     if (Clipboard.copy(shareInput.value)) {
       copyUrl.classList.add('success');
-      setTimeout(() => {
-        copyUrl.classList.remove('success');
-      }, 500);
+      setTimeout(() => copyUrl.classList.remove('success'), 500);
     }
   };
-  getShortLinkBtn.onclick = () => {
-    startLoading();
-    fetch('/create-link', {
-      method: 'POST',
-      body: JSON.stringify(geojson),
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((resp) => {
-        resp.json().then((data) => {
-          if (resp.status === 201) {
-            onSuccess();
-            urlRuntime.set('u', data.keyname);
-            setUrl(data.keyname);
-          } else {
-            onError(data.error);
-          }
-        });
-      })
-      .catch((er) => {
-        onError(er.error);
-      });
-  };
-  getImageBtn.onclick = () => {
-    fetch(`/img?u=${url}&width=${400}&height=${200}`)
-      .then((resp) => {
-        if (resp.ok) {
-          return resp.blob();
-        }
-        throw new Error('Image loading error');
-      })
-      .then((blob) => {
-        const mapImageUrl = URL.createObjectURL(blob);
 
-        const mapImage = elem.querySelector('.map-image');
-        if (mapImage) {
-          mapImage.setAttribute('src', mapImageUrl);
-        }
-      })
-      .catch((err) => {
-        console.error('Error:', err.message);
+  getShortLinkBtn.onclick = async () => {
+    startLoading(getShortLinkBtn);
+    try {
+      const response = await fetch('/create-link', {
+        method: 'POST',
+        body: JSON.stringify(geojson),
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
       });
+      const data = await response.json();
+      if (response.status === 201) {
+        updateButtonState(getShortLinkBtn, true, 'Link created');
+        urlRuntime.set('u', data.keyname);
+        setUrl(data.keyname);
+      } else {
+        showShareError(data.error || 'Link creation error');
+        updateButtonState(getShortLinkBtn, false, shortLinkBtnText);
+      }
+    } catch {
+      showShareError('Error creating link');
+      updateButtonState(getShortLinkBtn, false, shortLinkBtnText);
+    }
+  };
+
+  getImageBtn.onclick = async () => {
+    try {
+      const response = await fetch(`/img?u=${url}&width=${400}&height=${200}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const mapImageUrl = URL.createObjectURL(blob);
+        const mapImage = elem.querySelector('.map-image') as HTMLImageElement;
+        mapImage.setAttribute('src', mapImageUrl);
+      } else {
+        throw new Error('Image loading error');
+      }
+    } catch (err) {
+      console.error('Error:', (err as Error).message);
+    }
   };
 
   return elem;
 }
 
-for (const eventName of ['dragenter', 'dragover', 'dragleave', 'drop']) {
-  dropArea.addEventListener(eventName, preventDefaults, false);
-}
-for (const eventName of ['dragenter', 'dragover']) {
-  dropArea.addEventListener(eventName, highlight, false);
-}
-for (const eventName of ['dragleave', 'drop']) {
-  dropArea.addEventListener(eventName, unhighlight, false);
-}
-
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) =>
+  dropArea.addEventListener(eventName, preventDefaults, false),
+);
+['dragenter', 'dragover'].forEach((eventName) =>
+  dropArea.addEventListener(eventName, () => highlight(dropArea), false),
+);
+['dragleave', 'drop'].forEach((eventName) =>
+  dropArea.addEventListener(eventName, () => unhighlight(dropArea), false),
+);
 dropArea.addEventListener('drop', handleDrop, false);
 fileInput.addEventListener('change', onFileChange, false);
 
 function handleDrop(e: DragEvent) {
   hideError();
   const dt = e.dataTransfer;
-  if (dt) {
-    const file = dt.files[0];
-    if (file) {
-      handleFile(file);
-    }
+  if (dt && dt.files.length) {
+    handleFile(dt.files[0]);
   }
 }
 function onFileChange(e: Event) {
   hideError();
-  console.log(e);
   const files = (e.target as HTMLInputElement).files;
-  if (files) {
-    const file = files[0];
-    handleFile(file);
+  if (files && files.length) {
+    handleFile(files[0]);
   }
 }
-
 function handleFile(file: File) {
   const reader = new FileReader();
   showLoading();
@@ -385,6 +333,7 @@ function handleFile(file: File) {
         showError({ error: 'File is not valid GeoJSON' });
       }
     }
+    hideLoading();
   };
   reader.onerror = () => {
     hideLoading();
@@ -397,9 +346,9 @@ function preventDefaults(e: Event) {
   e.preventDefault();
   e.stopPropagation();
 }
-function highlight(e: Event) {
-  dropArea.classList.add('highlight');
+function highlight(el: HTMLElement) {
+  el.classList.add('highlight');
 }
-function unhighlight(e: Event) {
-  dropArea.classList.remove('highlight');
+function unhighlight(el: HTMLElement) {
+  el.classList.remove('highlight');
 }
