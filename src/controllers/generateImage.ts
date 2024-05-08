@@ -6,19 +6,20 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
   const color = req.query.color ? req.query.color : '00F';
   const width = req.query.width ? Number(req.query.width) : 400;
   const height = req.query.height ? Number(req.query.height) : 200;
-  let hostname = req.hostname;
+  const protocol = req.protocol;
+  let hostname = req.hostname || req.headers.host;
   if (hostname === 'localhost') {
-    hostname = 'localhost' + ':' + process.env.PORT;
+    hostname = `localhost:${process.env.PORT || 3000}`;
   }
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
 
   page.setViewport({
-    width: width,
-    height: height,
+    width,
+    height,
   });
 
-  await page.goto('http://' + hostname + `/view/?u=${u}&color=${color}`);
+  await page.goto(`${protocol}://${hostname}/?u=${u}&color=${color}`);
   await page.waitForNavigation({
     waitUntil: 'networkidle0',
   });

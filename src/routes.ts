@@ -8,6 +8,6 @@ const router = Router();
 
 router.get('/d', detectFormat);
 router.post('/create-link', cors(), createLink);
-router.get('/', generateImage);
+router.get('/img', generateImage);
 
 export default router;

@@ -19,7 +19,7 @@
     "@nextgis/dialog": "^2.0.2",
     "@nextgis/ngw-mapbox": "^1.11.3",
     "@nextgis/url-runtime-params": "^2.1.0",
-    "colors": "^1.4.0",
+    "color": "^4.2.3",
     "core-js": "^3.37.0",
     "regenerator-runtime": "^0.14.1"
   },

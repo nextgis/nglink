@@ -3,6 +3,7 @@ import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-mapbox';
 import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import { Clipboard, debounce } from '@nextgis/utils';
+import Color from 'color';
 
 import { makeIcon } from './utils/makeIcon';
 
@@ -27,7 +28,7 @@ const dropArea = document.getElementById('drop-area') as HTMLElement;
 
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
-const color = `#${urlRuntime.get('color')}`;
+const colorInit = `${urlRuntime.get('color') || 'blue'}`;
 
 let ngwMap: NgwMap | undefined;
 
@@ -145,7 +146,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       data: JSON.parse(JSON.stringify(geojson)),
       fit: true,
       id: 'layer',
-      paint: { color: color },
+      paint: { color: colorInit },
       selectedPaint: {
         color: 'orange',
         fillOpacity: 0.8,
@@ -184,7 +185,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
             '#fill-color-select',
           ) as HTMLInputElement;
 
-          fillColorSelect.value = color;
+          fillColorSelect.value = Color(colorInit).hex();
 
           const updatePaint = debounce(() => {
             if (ngwMap) {
@@ -212,7 +213,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
 function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const elem = document.createElement('div');
   const shortLinkBtnText = 'Get short link';
-  const getImageLinkBtnText = 'Get image link';
+  const getImageLinkBtnText = 'Get image';
   elem.innerHTML = `
   <div><input readonly class="share-input" /></div>
 
@@ -230,10 +231,10 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
 
   const shareInput = elem.querySelector('.share-input') as HTMLInputElement;
   const getShortLinkBtn = elem.querySelector(
-    '.get-short-link ',
+    '.get-short-link',
   ) as HTMLButtonElement;
   const getImageBtn = elem.querySelector(
-    '.get-image-link ',
+    '.get-image-link',
   ) as HTMLButtonElement;
   const copyUrl = elem.querySelector('.copy-url') as HTMLButtonElement;
   const shareErrorBlock = elem.querySelector(
@@ -313,19 +314,26 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       .catch((er) => {
         onError(er.error);
       });
+  };
+  getImageBtn.onclick = () => {
+    fetch(`/img?u=${url}&width=${400}&height=${200}`)
+      .then((resp) => {
+        if (resp.ok) {
+          return resp.blob();
+        }
+        throw new Error('Image loading error');
+      })
+      .then((blob) => {
+        const mapImageUrl = URL.createObjectURL(blob);
 
-    getImageBtn.onclick = () => {
-      fetch(`/?u=${url}&width=${400}&height=${200}`).then((resp) => {
-        resp.json().then((data) => {
-          if (resp.status === 200) {
-            const mapImage = elem.querySelector(
-              '.map-image',
-            ) as HTMLImageElement;
-            mapImage.setAttribute('src', data.imageLink);
-          }
-        });
+        const mapImage = elem.querySelector('.map-image');
+        if (mapImage) {
+          mapImage.setAttribute('src', mapImageUrl);
+        }
+      })
+      .catch((err) => {
+        console.error('Error:', err.message);
       });
-    };
   };
 
   return elem;
