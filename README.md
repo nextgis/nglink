@@ -22,6 +22,6 @@ npm run watch
 
 ## Docker
 
-docker build -t nglink:latest .
+docker build -t harbor.nextgis.net/frontend/nglink:latest .
 
-docker run -it -p 3000:3000 --rm --name nglink nglink:latest
+docker run -it -p 3000:3000 --rm --name nglink harbor.nextgis.net/frontend/nglink:latest

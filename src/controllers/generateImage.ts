@@ -11,7 +11,11 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
   if (hostname === 'localhost') {
     hostname = `localhost:${process.env.PORT || 3000}`;
   }
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    executablePath: '/usr/bin/google-chrome',
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    ignoreDefaultArgs: ['--disable-extensions'],
+  });
   const page = await browser.newPage();
 
   page.setViewport({
