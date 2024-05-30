@@ -28,6 +28,11 @@ const dropArea = document.getElementById('drop-area') as HTMLElement;
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
 const colorInit = `${urlRuntime.get('color') || 'blue'}`;
+const qmsId = urlRuntime.get('qmsId');
+let bbox = urlRuntime.get('bbox');
+if (bbox) {
+  bbox = bbox.split(',');
+}
 let ngwMap: NgwMap | undefined;
 
 if (url) {
@@ -99,7 +104,9 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
 
   NgwMap.create({
     target: mapBlock,
-    osm: true,
+    qmsId,
+    osm: !qmsId ?? true,
+    bounds: bbox,
   }).then((ngwMap_) => {
     ngwMap = ngwMap_;
     if (url) {
@@ -126,7 +133,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
 
     ngwMap.addGeoJsonLayer({
       data: JSON.parse(JSON.stringify(geojson)),
-      fit: true,
+      fit: !bbox ?? true,
       id: 'layer',
       paint: { color: colorInit },
       selectedPaint: {

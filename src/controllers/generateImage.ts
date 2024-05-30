@@ -3,7 +3,9 @@ import puppeteer from 'puppeteer';
 
 export const generateImage: RequestHandler = async (req: Request, res) => {
   const u = req.query.u.toString();
-  const color = req.query.color ? req.query.color : '00F';
+  const color = req.query.color;
+  const bbox = req.query.bbox;
+  const qmsId = req.query.qmsId;
   const width = req.query.width ? Number(req.query.width) : 400;
   const height = req.query.height ? Number(req.query.height) : 200;
   const protocol = req.protocol;
@@ -23,7 +25,18 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
     height,
   });
 
-  await page.goto(`${protocol}://${hostname}/?u=${u}&color=${color}`);
+  let url = `${protocol}://${hostname}/?u=${u}`;
+  if (color) {
+    url += `&color=${color}`;
+  }
+  if (bbox) {
+    url += `&bbox=${bbox}`;
+  }
+  if (qmsId) {
+    url += `&qmsId=${qmsId}`;
+  }
+
+  await page.goto(url);
   await page.waitForNavigation({
     waitUntil: 'networkidle0',
   });
