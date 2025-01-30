@@ -1,6 +1,6 @@
 import { mdiRefresh, mdiShare } from '@mdi/js';
 import Dialog from '@nextgis/dialog';
-import NgwMap from '@nextgis/ngw-mapbox';
+import NgwMap from '@nextgis/ngw-maplibre-gl';
 import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import { Clipboard, debounce } from '@nextgis/utils';
 import Color from 'color';
@@ -8,6 +8,7 @@ import Color from 'color';
 import { makeIcon } from './utils/makeIcon';
 
 import type { ApiError } from './interfaces';
+import type { FitOptions } from '@nextgis/webmap';
 import type { GeoJSON } from 'geojson';
 
 const loadingBlock = document.getElementById('loading-block') as HTMLElement;
@@ -28,11 +29,41 @@ const dropArea = document.getElementById('drop-area') as HTMLElement;
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
 const colorInit = `${urlRuntime.get('color') || 'blue'}`;
-const qmsId = urlRuntime.get('qmsId');
-let bbox = urlRuntime.get('bbox');
-if (bbox) {
-  bbox = bbox.split(',');
+const qmsIdStr = urlRuntime.get('qmsid');
+const qmsId = qmsIdStr ? Number(qmsIdStr) : undefined;
+const bboxStr = urlRuntime.get('bbox');
+
+let bbox: number[] | undefined = undefined;
+if (bboxStr) {
+  bbox = bboxStr.split(',').map(Number);
 }
+
+const fitOffsetStr = urlRuntime.get('fitoffset');
+let offset: [number, number] | undefined = undefined;
+
+if (fitOffsetStr) {
+  const offsetArray = fitOffsetStr.split(',').map(Number);
+  if (offsetArray.length) {
+    if (offsetArray.length === 1) {
+      const size = offsetArray[0];
+      offset = [size, size];
+    } else {
+      const [width, height] = offsetArray;
+      offset = [width, height];
+    }
+  }
+}
+
+const fitPaddingStr = urlRuntime.get('fitpadding');
+const padding: number | undefined = fitPaddingStr
+  ? Number(fitPaddingStr)
+  : undefined;
+
+const fitMaxZoomStr = urlRuntime.get('fitmaxzoom');
+const maxZoom: number | undefined = fitMaxZoomStr
+  ? Number(fitMaxZoomStr)
+  : undefined;
+
 let ngwMap: NgwMap | undefined;
 
 if (url) {
@@ -105,7 +136,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
   NgwMap.create({
     target: mapBlock,
     qmsId,
-    osm: !qmsId ?? true,
+    osm: !qmsId ? true : undefined,
     bounds: bbox,
   }).then((ngwMap_) => {
     ngwMap = ngwMap_;
@@ -131,31 +162,47 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       },
     });
 
-    ngwMap.addGeoJsonLayer({
-      data: JSON.parse(JSON.stringify(geojson)),
-      fit: !bbox ?? true,
-      id: 'layer',
-      paint: { color: colorInit },
-      selectedPaint: {
-        color: 'orange',
-        fillOpacity: 0.8,
-        strokeOpacity: 1,
-      },
-      selectable: true,
-      popupOnSelect: true,
-      popupOptions: {
-        createPopupContent: (e) => {
-          const element = document.createElement('table');
-          const properties = e.feature.properties || {};
-          element.innerHTML = '<tbody>';
-          Object.entries(properties).forEach(([key, value]) => {
-            element.innerHTML += `<tr><th>${key}</th><td>${value}</td></tr>`;
-          });
-          element.innerHTML += '</tbody>';
-          return element;
+    ngwMap
+      .addGeoJsonLayer({
+        data: JSON.parse(JSON.stringify(geojson)),
+        id: 'layer',
+        paint: { color: colorInit },
+        selectedPaint: {
+          color: 'orange',
+          fillOpacity: 0.8,
+          strokeOpacity: 1,
         },
-      },
-    });
+        selectable: true,
+        popupOnSelect: true,
+        popupOptions: {
+          createPopupContent: (e) => {
+            const element = document.createElement('table');
+            const properties = e.feature.properties || {};
+            element.innerHTML = '<tbody>';
+            Object.entries(properties).forEach(([key, value]) => {
+              element.innerHTML += `<tr><th>${key}</th><td>${value}</td></tr>`;
+            });
+            element.innerHTML += '</tbody>';
+            return element;
+          },
+        },
+      })
+      .then((layer) => {
+        if (!bbox) {
+          const fitOptions: FitOptions = {};
+          if (offset) {
+            fitOptions.offset = offset;
+          }
+          if (padding !== undefined) {
+            fitOptions.padding = padding;
+          }
+          if (maxZoom !== undefined) {
+            fitOptions.maxZoom = maxZoom;
+          }
+
+          ngwMap?.fitLayer(layer, fitOptions);
+        }
+      });
 
     const paintControl = ngwMap.createControl(
       {
