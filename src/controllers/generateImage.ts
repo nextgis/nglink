@@ -10,9 +10,7 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
     const width = req.query.width ? Number(req.query.width) : 400;
     const height = req.query.height ? Number(req.query.height) : 200;
     const fitOffset = req.query.fitoffset;
-    const fitPadding = req.query.fitpadding
-      ? Number(req.query.fitpadding)
-      : undefined;
+    const fitPadding = req.query.fitpadding ? Number(req.query.fitpadding) : 5;
     const fitMaxZoom = req.query.fitmaxzoom
       ? Number(req.query.fitmaxzoom)
       : undefined;
