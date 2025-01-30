@@ -2,7 +2,7 @@ FROM node:20-alpine as base
 
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY src ./src
 COPY tsconfig.json ./tsconfig.json
@@ -11,7 +11,7 @@ RUN npm run build
 
 FROM node:20-alpine as front
 COPY ./front/package.json ./front/package-lock.json ./
-RUN npm install
+RUN npm ci
 COPY ./front ./
 RUN npm run prod
 

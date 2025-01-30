@@ -18,9 +18,10 @@
     "@nextgis/dialog": "^3.0.0-alpha.18",
     "@nextgis/ngw-maplibre-gl": "^3.0.0-alpha.19",
     "@nextgis/url-runtime-params": "^3.0.0-alpha.18",
-    "maplibre-gl": "^5.1.0",
+    "@nextgis/webmap": "^3.0.0-alpha.18",
     "color": "^4.2.3",
     "core-js": "^3.40.0",
+    "maplibre-gl": "^5.1.0",
     "regenerator-runtime": "^0.14.1"
   },
   "devDependencies": {
@@ -30,8 +31,8 @@
     "@babel/preset-env": "^7.24.4",
     "@babel/preset-typescript": "^7.24.1",
     "@nextgis/eslint-config": "^2.0.2",
-    "@types/node": "^20.12.7",
     "@types/color": "^3.0.6",
+    "@types/node": "^20.12.7",
     "babel-loader": "^9.1.3",
     "css-loader": "^7.1.1",
     "eslint-webpack-plugin": "^4.1.0",
