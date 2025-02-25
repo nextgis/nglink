@@ -9,7 +9,7 @@
     "eslint": "eslint src/server.ts",
     "lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts",
     "docker": "docmypkg -r harbor.nextgis.net -n frontend/nglink -l",
-    "dev-server": "cross-env NODE_ENV=development nodemon",
+    "dev": "cross-env NODE_ENV=development nodemon",
     "ts-node-server": "ts-node src/server.ts",
     "start": "node dist/server.js",
     "fix-lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts --fix"
