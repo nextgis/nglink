@@ -29,6 +29,7 @@ const dropArea = document.getElementById('drop-area') as HTMLElement;
 const urlRuntime = new UrlRuntimeParams();
 const url = urlRuntime.get('u');
 const colorInit = `${urlRuntime.get('color') || 'blue'}`;
+const opacityInit: number = Number(`${urlRuntime.get('opacity') || 0.7}`);
 const qmsIdStr = urlRuntime.get('qmsid');
 const qmsId = qmsIdStr ? Number(qmsIdStr) : undefined;
 const bboxStr = urlRuntime.get('bbox');
@@ -166,7 +167,7 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       .addGeoJsonLayer({
         data: JSON.parse(JSON.stringify(geojson)),
         id: 'layer',
-        paint: { color: colorInit },
+        paint: { color: colorInit, fillOpacity: opacityInit },
         selectedPaint: {
           color: 'orange',
           fillOpacity: 0.8,
@@ -209,21 +210,73 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
         onAdd: () => {
           const elem = document.createElement('div');
           elem.innerHTML = `
-          <div class="">
-            <input id="fill-color-select" type="color" />
-            <label for="fill-color-select">Fill color</label>
-          </div>
+            <div class="color-control">
+              <input id="fill-color-select" type="color" />
+              <input id="alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
+              <label for="fill-color-select">Fill color</label>
+            </div>
           `;
+
+          const container = elem.querySelector(
+            '.color-control',
+          ) as HTMLDivElement;
+          if (container) {
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.width = '180px';
+            container.style.height = '35px';
+            container.style.cursor = 'pointer';
+            container.style.borderRadius = '4px';
+          }
+
+          const label = elem.querySelector('label') as HTMLLabelElement;
+          if (label) {
+            label.style.fontSize = '16px';
+            label.style.fontWeight = 'bold';
+            label.style.cursor = 'pointer';
+            label.style.marginLeft = '10px';
+          }
+
+          const colorInput = elem.querySelector(
+            '#fill-color-select',
+          ) as HTMLInputElement;
+          if (colorInput) {
+            colorInput.style.width = '18%';
+            colorInput.style.border = 'none';
+            colorInput.style.background = '#fff';
+            colorInput.style.margin = '0 7px';
+            colorInput.style.cursor = 'pointer';
+            colorInput.style.padding = '0';
+          }
+
+          const alphaInput = elem.querySelector(
+            '#alpha-select',
+          ) as HTMLInputElement;
+          if (alphaInput) {
+            alphaInput.value = String(opacityInit);
+            alphaInput.style.width = '40px';
+            alphaInput.style.cursor = 'pointer';
+            alphaInput.style.height = '2px';
+          }
+
           const fillColorSelect = elem.querySelector(
             '#fill-color-select',
           ) as HTMLInputElement;
           fillColorSelect.value = Color(colorInit).hex();
+
           const updatePaint = debounce(() => {
+            const color = fillColorSelect.value;
+            const alpha = alphaInput.value;
+
             ngwMap?.updateLayerPaint('layer', {
-              fillColor: fillColorSelect.value,
+              fillColor: color,
+              fillOpacity: Number(alpha),
             });
           }, 300);
+
           fillColorSelect.oninput = updatePaint;
+          alphaInput.oninput = updatePaint;
+
           return elem;
         },
         onRemove: () => null,
