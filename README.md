@@ -20,7 +20,7 @@ npm install
 ### Start Development Server
 
 ```bash
-npm run dev-server
+npm run dev
 ```
 
 ### Frontend Setup
