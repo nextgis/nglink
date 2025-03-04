@@ -34,8 +34,10 @@ module.exports = (env, argv) => {
         {
           test: /\.(js|ts)x?$/,
           exclude: /node_modules/,
-          use: {
-            loader: 'babel-loader',
+          loader: 'esbuild-loader',
+          options: {
+            // JavaScript version to compile to
+            target: 'es2015',
           },
         },
         {
@@ -85,10 +87,6 @@ module.exports = (env, argv) => {
         __BROWSER__: true,
         __DEV__: !isProd,
       }),
-      // new webpack.ContextReplacementPlugin(
-      //   /date-fns[/\\]/,
-      //   new RegExp(`[/\\\\](${supportedLocales.join('|')})[/\\\\]index.js$`),
-      // ),
       new FaviconsWebpackPlugin('./src/images/favicon.png'),
     ],
 
@@ -109,8 +107,8 @@ module.exports = (env, argv) => {
     );
   }
 
-  // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
-  //   .BundleAnalyzerPlugin;
+  // const BundleAnalyzerPlugin =
+  //   require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
   // config.plugins.push(new BundleAnalyzerPlugin());
 
   return config;
