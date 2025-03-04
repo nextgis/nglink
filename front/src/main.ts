@@ -293,17 +293,38 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const shortLinkBtnText = 'Get short link';
   const getImageLinkBtnText = 'Get image';
   elem.innerHTML = `
+  <div id = "header-link">Creating a link</div>
   <div><input readonly class="share-input" /></div>
   <img class="map-image img"/>
+  <input type="checkbox" id="checkbox-style"/>
+  <label for="checkbox-style" id="checkbox-style-label">Save the style information</label>
   <div class="buttons-panel">
-  <button class="get-short-link button">${shortLinkBtnText}</button>
-  <button class="copy-url button">Copy URL</button>
-  <button class="get-image-link button" style="display: none">${getImageLinkBtnText}</button>
+  <button class="get-short-link button" style="user-select: none">${shortLinkBtnText}</button>
+  <button class="copy-url button" style="user-select: none">Copy URL</button>
+  <button class="get-image-link button" style="display: none" >${getImageLinkBtnText}</button>
   </div>
   <div class="error-block hidden">
     <span class="error-block-title">ERROR: </span><span class="error-block-detail"></span>
   </div>
   `;
+
+  const header = elem.querySelector('#header-link') as HTMLDivElement;
+  header.style.userSelect = 'none';
+  header.style.marginBottom = '30px';
+  header.style.display = 'flex';
+  header.style.justifyContent = 'center';
+  header.style.fontSize = '18px';
+  header.style.fontWeight = 'bold';
+
+  const checkboxStyle = elem.querySelector('#checkbox-style') as HTMLDivElement;
+  checkboxStyle.style.userSelect = 'none';
+  checkboxStyle.style.marginTop = '20px';
+  checkboxStyle.style.marginLeft = '0px';
+  checkboxStyle.style.paddingRight = '0';
+  const checkboxStyle_label = elem.querySelector(
+    '#checkbox-style-label',
+  ) as HTMLDivElement;
+  checkboxStyle_label.style.userSelect = 'none';
 
   const shareInput = elem.querySelector('.share-input') as HTMLInputElement;
   const getShortLinkBtn = elem.querySelector(
@@ -318,11 +339,17 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     '.error-block-detail',
   ) as HTMLElement;
 
+  copyUrl.style.width = '90px';
+
   const setUrl = (u: string) => {
     shareInput.value = `${location.origin}?u=${u}`;
   };
   if (url) setUrl(url);
-  if (link) getShortLinkBtn.style.display = 'none';
+  if (link) {
+    getShortLinkBtn.style.display = 'none';
+    checkboxStyle.style.display = 'none';
+    checkboxStyle_label.style.display = 'none';
+  }
 
   const startLoading = (btn: HTMLButtonElement) => {
     btn.disabled = true;
@@ -351,8 +378,10 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
 
   copyUrl.onclick = () => {
     if (Clipboard.copy(shareInput.value)) {
-      copyUrl.classList.add('success');
-      setTimeout(() => copyUrl.classList.remove('success'), 500);
+      copyUrl.innerHTML = 'Copied';
+      setTimeout(() => {
+        copyUrl.innerHTML = 'Copy URL';
+      }, 1000);
     }
   };
 
