@@ -41,7 +41,7 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
     let url = `${protocol}://${hostname}/?u=${u}`;
 
     if (color) {
-      url += `&color=${color}`;
+      url += `&color=${encodeURIComponent(color)}`;
     }
     if (bbox) {
       url += `&bbox=${bbox}`;
