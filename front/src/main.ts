@@ -167,7 +167,11 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
       .addGeoJsonLayer({
         data: JSON.parse(JSON.stringify(geojson)),
         id: 'layer',
-        paint: { color: colorInit, fillOpacity: opacityInit },
+        paint: {
+          color: colorInit,
+          fillOpacity: opacityInit,
+          strokeColor: colorInit,
+        },
         selectedPaint: {
           color: 'orange',
           fillOpacity: 0.8,
@@ -271,6 +275,8 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
             ngwMap?.updateLayerPaint('layer', {
               fillColor: color,
               fillOpacity: Number(alpha),
+              strokeColor: color,
+              strokeOpacity: Number(alpha),
             });
           }, 300);
 
@@ -288,10 +294,18 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
   });
 }
 
+let savedUrl: string | null = null;
+
 function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   const elem = document.createElement('div');
   const shortLinkBtnText = 'Get short link';
+  const newLinkBtnText = 'Get a new link';
   const getImageLinkBtnText = 'Get image';
+
+  if (savedUrl) {
+    url = savedUrl.split('?u=')[1];
+  }
+
   elem.innerHTML = `
   <div id = "header-link">Creating a link</div>
   <div><input readonly class="share-input" /></div>
@@ -340,11 +354,47 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   ) as HTMLElement;
 
   copyUrl.style.width = '90px';
+  copyUrl.disabled = true;
+
+  const getCurrentColorAndOpacity = () => {
+    const colorInput = document.getElementById(
+      'fill-color-select',
+    ) as HTMLInputElement;
+    const alphaInput = document.getElementById(
+      'alpha-select',
+    ) as HTMLInputElement;
+
+    const currentColor = colorInput.value.replace('#', '');
+    const currentOpacity = alphaInput.value;
+
+    return { currentColor, currentOpacity };
+  };
 
   const setUrl = (u: string) => {
-    shareInput.value = `${location.origin}?u=${u}`;
+    let fullUrl = `${location.origin}?u=${u}`;
+    const checkboxStyle = elem.querySelector(
+      '#checkbox-style',
+    ) as HTMLInputElement;
+
+    if (checkboxStyle.checked) {
+      const { currentColor, currentOpacity } = getCurrentColorAndOpacity();
+      fullUrl += `&color=%23${currentColor}&opacity=${currentOpacity}`;
+    }
+
+    history.replaceState(null, '', fullUrl);
+
+    shareInput.value = fullUrl;
+    savedUrl = fullUrl;
+    copyUrl.disabled = false;
+
+    if (shareInput.value) {
+      getShortLinkBtn.innerHTML = newLinkBtnText;
+    }
   };
-  if (url) setUrl(url);
+
+  if (url) {
+    setUrl(url);
+  }
   if (link) {
     getShortLinkBtn.style.display = 'none';
     checkboxStyle.style.display = 'none';
@@ -366,7 +416,7 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     btn.disabled = true;
     setTimeout(() => {
       btn.classList.remove('success', 'error');
-      btn.innerHTML = success ? 'Link created' : shortLinkBtnText;
+      btn.innerHTML = success ? newLinkBtnText : shortLinkBtnText;
       btn.disabled = false;
     }, 1000);
   };
@@ -398,7 +448,7 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       });
       const data = await response.json();
       if (response.status === 201) {
-        updateButtonState(getShortLinkBtn, true, 'Link created');
+        updateButtonState(getShortLinkBtn, true, newLinkBtnText);
         urlRuntime.set('u', data.keyname);
         setUrl(data.keyname);
       } else {
@@ -426,6 +476,12 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       console.error('Error:', (err as Error).message);
     }
   };
+
+  checkboxStyle.addEventListener('change', () => {
+    if (url) {
+      getShortLinkBtn.innerHTML = newLinkBtnText;
+    }
+  });
 
   return elem;
 }
