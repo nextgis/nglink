@@ -5,6 +5,7 @@ import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import { Clipboard, debounce } from '@nextgis/utils';
 import Color from 'color';
 
+import { config } from './config';
 import { makeIcon } from './utils/makeIcon';
 
 import type { ApiError } from './interfaces';
@@ -27,12 +28,14 @@ const fileInput = document.getElementById('file-upload') as HTMLInputElement;
 const dropArea = document.getElementById('drop-area') as HTMLElement;
 
 const urlRuntime = new UrlRuntimeParams();
-const url = urlRuntime.get('u');
-const colorInit = `${urlRuntime.get('color') || 'blue'}`;
-const opacityInit: number = Number(`${urlRuntime.get('opacity') || 0.7}`);
+const url = config.url.readUrl?.();
+const colorInit = config.color.readUrl?.();
+const opacityInit = config.opacity.readUrl?.();
+const strokeColorInit = config.strokeColor.readUrl?.();
+const strokeOpacityInit = config.strokeOpacity.readUrl?.();
 const qmsIdStr = urlRuntime.get('qmsid');
 const qmsId = qmsIdStr ? Number(qmsIdStr) : undefined;
-const bboxStr = urlRuntime.get('bbox');
+const bboxStr = config.bbox.readUrl?.();
 
 let bbox: number[] | undefined = undefined;
 if (bboxStr) {
@@ -170,7 +173,8 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
         paint: {
           color: colorInit,
           fillOpacity: opacityInit,
-          strokeColor: colorInit,
+          strokeColor: strokeColorInit,
+          strokeOpacity: strokeOpacityInit,
         },
         selectedPaint: {
           color: 'orange',
@@ -214,74 +218,102 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
         onAdd: () => {
           const elem = document.createElement('div');
           elem.innerHTML = `
+          <div id="style-control">
             <div class="color-control">
-              <input id="fill-color-select" type="color" />
-              <input id="alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
-              <label for="fill-color-select">Fill color</label>
+                <input class="fill-color-select" type="color" />
+                <input class="alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
+                <label for="fill-color-select">Fill color</label>
             </div>
+            <div class="color-control">
+                <input class="stroke-color-select" type="color" />
+                <input class="stroke-alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
+                <label for="stroke-color-select">Stroke color</label>
+            </div>
+        </div>
           `;
 
-          const container = elem.querySelector(
+          const containers = elem.querySelectorAll(
             '.color-control',
-          ) as HTMLDivElement;
-          if (container) {
+          ) as NodeListOf<HTMLDivElement>;
+          containers.forEach((container) => {
             container.style.display = 'flex';
             container.style.alignItems = 'center';
-            container.style.width = '180px';
+            container.style.width = '207px';
             container.style.height = '35px';
             container.style.cursor = 'pointer';
             container.style.borderRadius = '4px';
-          }
+          });
 
-          const label = elem.querySelector('label') as HTMLLabelElement;
-          if (label) {
+          const labels = elem.querySelectorAll(
+            'label',
+          ) as NodeListOf<HTMLLabelElement>;
+          labels.forEach((label) => {
             label.style.fontSize = '16px';
             label.style.fontWeight = 'bold';
             label.style.cursor = 'pointer';
             label.style.marginLeft = '10px';
-          }
+          });
 
-          const colorInput = elem.querySelector(
-            '#fill-color-select',
-          ) as HTMLInputElement;
-          if (colorInput) {
+          const colorInputs = elem.querySelectorAll(
+            '.fill-color-select, .stroke-color-select',
+          ) as NodeListOf<HTMLInputElement>;
+          colorInputs.forEach((colorInput) => {
             colorInput.style.width = '18%';
             colorInput.style.border = 'none';
             colorInput.style.background = '#fff';
             colorInput.style.margin = '0 7px';
             colorInput.style.cursor = 'pointer';
             colorInput.style.padding = '0';
-          }
+          });
 
-          const alphaInput = elem.querySelector(
-            '#alpha-select',
-          ) as HTMLInputElement;
-          if (alphaInput) {
+          const alphaInputs = elem.querySelectorAll(
+            '.alpha-select, .stroke-alpha-select',
+          ) as NodeListOf<HTMLInputElement>;
+          alphaInputs.forEach((alphaInput) => {
             alphaInput.value = String(opacityInit);
             alphaInput.style.width = '40px';
             alphaInput.style.cursor = 'pointer';
             alphaInput.style.height = '2px';
-          }
+          });
 
           const fillColorSelect = elem.querySelector(
-            '#fill-color-select',
+            '.fill-color-select',
           ) as HTMLInputElement;
           fillColorSelect.value = Color(colorInit).hex();
 
+          const alphaInput = elem.querySelector(
+            '.alpha-select',
+          ) as HTMLInputElement;
+          alphaInput.value = String(opacityInit);
+
+          const strokeColorSelect = elem.querySelector(
+            '.stroke-color-select',
+          ) as HTMLInputElement;
+          strokeColorSelect.value = Color(strokeColorInit).hex();
+
+          const strokeAlphaInput = elem.querySelector(
+            '.stroke-alpha-select',
+          ) as HTMLInputElement;
+          strokeAlphaInput.value = String(strokeOpacityInit);
+
           const updatePaint = debounce(() => {
-            const color = fillColorSelect.value;
-            const alpha = alphaInput.value;
+            const fillColor = fillColorSelect.value;
+            const fillAlpha = alphaInput.value;
+            const strokeColor = strokeColorSelect.value;
+            const strokeAlpha = strokeAlphaInput.value;
 
             ngwMap?.updateLayerPaint('layer', {
-              fillColor: color,
-              fillOpacity: Number(alpha),
-              strokeColor: color,
-              strokeOpacity: Number(alpha),
+              fillColor: fillColor,
+              fillOpacity: Number(fillAlpha),
+              strokeColor: strokeColor,
+              strokeOpacity: Number(strokeAlpha),
             });
           }, 300);
 
           fillColorSelect.oninput = updatePaint;
           alphaInput.oninput = updatePaint;
+          strokeColorSelect.oninput = updatePaint;
+          strokeAlphaInput.oninput = updatePaint;
 
           return elem;
         },
@@ -330,7 +362,9 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   header.style.fontSize = '18px';
   header.style.fontWeight = 'bold';
 
-  const checkboxStyle = elem.querySelector('#checkbox-style') as HTMLDivElement;
+  const checkboxStyle = elem.querySelector(
+    '#checkbox-style',
+  ) as HTMLInputElement;
   checkboxStyle.style.userSelect = 'none';
   checkboxStyle.style.marginTop = '20px';
   checkboxStyle.style.marginLeft = '0px';
@@ -357,17 +391,30 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   copyUrl.disabled = true;
 
   const getCurrentColorAndOpacity = () => {
-    const colorInput = document.getElementById(
-      'fill-color-select',
+    const colorInput = document.querySelector(
+      '.fill-color-select',
     ) as HTMLInputElement;
-    const alphaInput = document.getElementById(
-      'alpha-select',
+    const alphaInput = document.querySelector(
+      '.alpha-select',
+    ) as HTMLInputElement;
+    const strokeColorInput = document.querySelector(
+      '.stroke-color-select',
+    ) as HTMLInputElement;
+    const strokeAlphaInput = document.querySelector(
+      '.stroke-alpha-select',
     ) as HTMLInputElement;
 
     const currentColor = colorInput.value.replace('#', '');
     const currentOpacity = alphaInput.value;
+    const currentStrokeColor = strokeColorInput.value.replace('#', '');
+    const currentStrokeOpacity = strokeAlphaInput.value;
 
-    return { currentColor, currentOpacity };
+    return {
+      currentColor,
+      currentOpacity,
+      currentStrokeColor,
+      currentStrokeOpacity,
+    };
   };
 
   const setUrl = (u: string) => {
@@ -377,8 +424,20 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     ) as HTMLInputElement;
 
     if (checkboxStyle.checked) {
-      const { currentColor, currentOpacity } = getCurrentColorAndOpacity();
-      fullUrl += `&color=%23${currentColor}&opacity=${currentOpacity}`;
+      let configUrl = '';
+      for (const [key, value] of Object.entries(config)) {
+        if (value.forShare && value.getValue) {
+          configUrl += `&${key}=${encodeURIComponent(value.getValue())}`;
+        }
+      }
+      const {
+        currentColor,
+        currentOpacity,
+        currentStrokeColor,
+        currentStrokeOpacity,
+      } = getCurrentColorAndOpacity();
+
+      fullUrl += `&color=%23${currentColor}&opacity=${currentOpacity}&strokeColor=%23${currentStrokeColor}&strokeOpacity=${currentStrokeOpacity}`;
     }
 
     history.replaceState(null, '', fullUrl);
@@ -395,6 +454,21 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   if (url) {
     setUrl(url);
   }
+
+  const updateCheckboxState = () => {
+    if (!savedUrl) return;
+    const urlObj = new URL(savedUrl, location.origin);
+    const params = urlObj.searchParams;
+
+    checkboxStyle.checked =
+      params.has('color') &&
+      params.has('opacity') &&
+      params.has('strokeColor') &&
+      params.has('strokeOpacity');
+  };
+
+  updateCheckboxState();
+
   if (link) {
     getShortLinkBtn.style.display = 'none';
     checkboxStyle.style.display = 'none';
@@ -447,6 +521,10 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
         },
       });
       const data = await response.json();
+      checkboxStyle.addEventListener('change', () => {
+        urlRuntime.set('u', data.keyname);
+        setUrl(data.keyname);
+      });
       if (response.status === 201) {
         updateButtonState(getShortLinkBtn, true, newLinkBtnText);
         urlRuntime.set('u', data.keyname);
@@ -476,12 +554,6 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       console.error('Error:', (err as Error).message);
     }
   };
-
-  checkboxStyle.addEventListener('change', () => {
-    if (url) {
-      getShortLinkBtn.innerHTML = newLinkBtnText;
-    }
-  });
 
   return elem;
 }
