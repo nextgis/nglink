@@ -5,10 +5,12 @@ import UrlRuntimeParams from '@nextgis/url-runtime-params';
 import { Clipboard, debounce } from '@nextgis/utils';
 import Color from 'color';
 
+import { StateManager } from './StateManager';
 import { config } from './config';
 import { makeIcon } from './utils/makeIcon';
 
 import type { ApiError } from './interfaces';
+import type { PathPaint } from '@nextgis/paint';
 import type { FitOptions } from '@nextgis/webmap';
 import type { GeoJSON } from 'geojson';
 
@@ -67,6 +69,21 @@ const fitMaxZoomStr = urlRuntime.get('fitmaxzoom');
 const maxZoom: number | undefined = fitMaxZoomStr
   ? Number(fitMaxZoomStr)
   : undefined;
+
+const state = new StateManager({
+  color: { value: colorInit, paintName: 'fillColor', urlName: 'color' },
+  opacity: { value: opacityInit, paintName: 'fillOpacity', urlName: 'opacity' },
+  strokeColor: {
+    value: strokeColorInit,
+    paintName: 'strokeColor',
+    urlName: 'strokeColor',
+  },
+  strokeOpacity: {
+    value: strokeOpacityInit,
+    paintName: 'strokeOpacity',
+    urlName: 'strokeOpacity',
+  },
+});
 
 let ngwMap: NgwMap | undefined;
 
@@ -296,24 +313,16 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
           ) as HTMLInputElement;
           strokeAlphaInput.value = String(strokeOpacityInit);
 
-          const updatePaint = debounce(() => {
-            const fillColor = fillColorSelect.value;
-            const fillAlpha = alphaInput.value;
-            const strokeColor = strokeColorSelect.value;
-            const strokeAlpha = strokeAlphaInput.value;
-
-            ngwMap?.updateLayerPaint('layer', {
-              fillColor: fillColor,
-              fillOpacity: Number(fillAlpha),
-              strokeColor: strokeColor,
-              strokeOpacity: Number(strokeAlpha),
-            });
-          }, 300);
-
-          fillColorSelect.oninput = updatePaint;
-          alphaInput.oninput = updatePaint;
-          strokeColorSelect.oninput = updatePaint;
-          strokeAlphaInput.oninput = updatePaint;
+          fillColorSelect.oninput = () => {
+            state.set('color', fillColorSelect.value);
+          };
+          alphaInput.oninput = () => {
+            state.set('opacity', Number(alphaInput.value));
+          };
+          strokeColorSelect.oninput = () =>
+            state.set('strokeColor', strokeColorSelect.value);
+          strokeAlphaInput.oninput = () =>
+            state.set('strokeOpacity', strokeAlphaInput.value);
 
           return elem;
         },
@@ -323,6 +332,18 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
     );
 
     ngwMap.addControl(paintControl, 'top-right');
+  });
+
+  state.subscribe((state) => {
+    const paint = {} as PathPaint;
+
+    for (const value of Object.values(state)) {
+      if (value.paintName && value.value !== undefined) {
+        paint[value.paintName as keyof PathPaint] = value.value;
+      }
+    }
+
+    ngwMap?.updateLayerPaint('layer', paint);
   });
 }
 
@@ -390,33 +411,6 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   copyUrl.style.width = '90px';
   copyUrl.disabled = true;
 
-  const getCurrentColorAndOpacity = () => {
-    const colorInput = document.querySelector(
-      '.fill-color-select',
-    ) as HTMLInputElement;
-    const alphaInput = document.querySelector(
-      '.alpha-select',
-    ) as HTMLInputElement;
-    const strokeColorInput = document.querySelector(
-      '.stroke-color-select',
-    ) as HTMLInputElement;
-    const strokeAlphaInput = document.querySelector(
-      '.stroke-alpha-select',
-    ) as HTMLInputElement;
-
-    const currentColor = colorInput.value.replace('#', '');
-    const currentOpacity = alphaInput.value;
-    const currentStrokeColor = strokeColorInput.value.replace('#', '');
-    const currentStrokeOpacity = strokeAlphaInput.value;
-
-    return {
-      currentColor,
-      currentOpacity,
-      currentStrokeColor,
-      currentStrokeOpacity,
-    };
-  };
-
   const setUrl = (u: string) => {
     let fullUrl = `${location.origin}?u=${u}`;
     const checkboxStyle = elem.querySelector(
@@ -424,20 +418,11 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     ) as HTMLInputElement;
 
     if (checkboxStyle.checked) {
-      let configUrl = '';
-      for (const [key, value] of Object.entries(config)) {
-        if (value.forShare && value.getValue) {
-          configUrl += `&${key}=${encodeURIComponent(value.getValue())}`;
+      for (const value of Object.values(state.state)) {
+        if (value.urlName && value.value) {
+          fullUrl += `&${value.urlName}=${encodeURIComponent(value.value)}`;
         }
       }
-      const {
-        currentColor,
-        currentOpacity,
-        currentStrokeColor,
-        currentStrokeOpacity,
-      } = getCurrentColorAndOpacity();
-
-      fullUrl += `&color=%23${currentColor}&opacity=${currentOpacity}&strokeColor=%23${currentStrokeColor}&strokeOpacity=${currentStrokeOpacity}`;
     }
 
     history.replaceState(null, '', fullUrl);
