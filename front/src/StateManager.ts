@@ -4,6 +4,9 @@ interface Property<V = any> {
   value: V;
   urlName?: string;
   paintName?: keyof PathPaint;
+  forShare?: boolean;
+  parseStr: (val: string) => void;
+  urlRuntime?: boolean;
 }
 
 type State = Record<string, Property>;
@@ -17,6 +20,11 @@ export class StateManager<S extends State = State> {
 
   constructor(state: S) {
     this.state = state;
+  }
+
+  getVal(key: keyof S): any {
+    const exist = this.state[key];
+    return exist?.value;
   }
 
   set(key: keyof S, value: any) {

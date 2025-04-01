@@ -2,11 +2,10 @@ import { mdiRefresh, mdiShare } from '@mdi/js';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-maplibre-gl';
 import UrlRuntimeParams from '@nextgis/url-runtime-params';
-import { Clipboard, debounce } from '@nextgis/utils';
+import { Clipboard } from '@nextgis/utils';
 import Color from 'color';
 
-import { StateManager } from './StateManager';
-import { config } from './config';
+import { state } from './state';
 import { makeIcon } from './utils/makeIcon';
 
 import type { ApiError } from './interfaces';
@@ -30,62 +29,46 @@ const fileInput = document.getElementById('file-upload') as HTMLInputElement;
 const dropArea = document.getElementById('drop-area') as HTMLElement;
 
 const urlRuntime = new UrlRuntimeParams();
-const url = config.url.readUrl?.();
-const colorInit = config.color.readUrl?.();
-const opacityInit = config.opacity.readUrl?.();
-const strokeColorInit = config.strokeColor.readUrl?.();
-const strokeOpacityInit = config.strokeOpacity.readUrl?.();
-const qmsIdStr = urlRuntime.get('qmsid');
-const qmsId = qmsIdStr ? Number(qmsIdStr) : undefined;
-const bboxStr = config.bbox.readUrl?.();
-
-let bbox: number[] | undefined = undefined;
-if (bboxStr) {
-  bbox = bboxStr.split(',').map(Number);
-}
-
-const fitOffsetStr = urlRuntime.get('fitoffset');
-let offset: [number, number] | undefined = undefined;
-
-if (fitOffsetStr) {
-  const offsetArray = fitOffsetStr.split(',').map(Number);
-  if (offsetArray.length) {
-    if (offsetArray.length === 1) {
-      const size = offsetArray[0];
-      offset = [size, size];
-    } else {
-      const [width, height] = offsetArray;
-      offset = [width, height];
+for (const [key, s] of Object.entries(state.state)) {
+  if (s.urlName) {
+    const val = urlRuntime.get(s.urlName);
+    if (val) {
+      state.set(key as any, s.parseStr(val));
     }
   }
 }
 
-const fitPaddingStr = urlRuntime.get('fitpadding');
-const padding: number | undefined = fitPaddingStr
-  ? Number(fitPaddingStr)
-  : undefined;
-
-const fitMaxZoomStr = urlRuntime.get('fitmaxzoom');
-const maxZoom: number | undefined = fitMaxZoomStr
-  ? Number(fitMaxZoomStr)
-  : undefined;
-
-const state = new StateManager({
-  color: { value: colorInit, paintName: 'fillColor', urlName: 'color' },
-  opacity: { value: opacityInit, paintName: 'fillOpacity', urlName: 'opacity' },
-  strokeColor: {
-    value: strokeColorInit,
-    paintName: 'strokeColor',
-    urlName: 'strokeColor',
-  },
-  strokeOpacity: {
-    value: strokeOpacityInit,
-    paintName: 'strokeOpacity',
-    urlName: 'strokeOpacity',
-  },
+state.subscribe((values) => {
+  for (const item of Object.values(values)) {
+    if (item.urlRuntime && item.urlName) {
+      urlRuntime.set(item.urlName, item.value);
+    }
+  }
 });
 
+const fitOffsetStr = state.getVal('fitOffset');
+let offset: [number, number] | undefined = undefined;
+if (fitOffsetStr) {
+  const offsetArray = fitOffsetStr.split(',').map(Number);
+  if (offsetArray.length) {
+    offset =
+      offsetArray.length === 1
+        ? [offsetArray[0], offsetArray[0]]
+        : [offsetArray[0], offsetArray[1]];
+  }
+}
+
+const padding = state.getVal('fitPadding');
+const maxZoom = state.getVal('fitMaxZoom');
+
 let ngwMap: NgwMap | undefined;
+const url = state.getVal('url');
+const qmsId = state.getVal('qmsId');
+const bbox = state.getVal('bbox');
+const colorInit = state.getVal('color');
+const opacityInit = state.getVal('opacity');
+const strokeColorInit = state.getVal('strokeColor');
+const strokeOpacityInit = state.getVal('strokeOpacity');
 
 if (url) {
   fetchData(url);
@@ -188,10 +171,10 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
         data: JSON.parse(JSON.stringify(geojson)),
         id: 'layer',
         paint: {
-          color: colorInit,
-          fillOpacity: opacityInit,
-          strokeColor: strokeColorInit,
-          strokeOpacity: strokeOpacityInit,
+          color: state.getVal('color'),
+          fillOpacity: state.getVal('opacity'),
+          strokeColor: state.getVal('strokeColor'),
+          strokeOpacity: state.getVal('strokeOpacity'),
         },
         selectedPaint: {
           color: 'orange',
@@ -319,10 +302,12 @@ function showMap(geojson: GeoJSON, url?: string, link = false) {
           alphaInput.oninput = () => {
             state.set('opacity', Number(alphaInput.value));
           };
-          strokeColorSelect.oninput = () =>
+          strokeColorSelect.oninput = () => {
             state.set('strokeColor', strokeColorSelect.value);
-          strokeAlphaInput.oninput = () =>
+          };
+          strokeAlphaInput.oninput = () => {
             state.set('strokeOpacity', strokeAlphaInput.value);
+          };
 
           return elem;
         },
@@ -365,6 +350,8 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   <img class="map-image img"/>
   <input type="checkbox" id="checkbox-style"/>
   <label for="checkbox-style" id="checkbox-style-label">Save the style information</label>
+  <input type="checkbox" id="checkbox-param-map"/>
+  <label for="checkbox-param-map" id="checkbox-param-map-label">Save the map parameters</label>
   <div class="buttons-panel">
   <button class="get-short-link button" style="user-select: none">${shortLinkBtnText}</button>
   <button class="copy-url button" style="user-select: none">Copy URL</button>
@@ -374,6 +361,9 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
     <span class="error-block-title">ERROR: </span><span class="error-block-detail"></span>
   </div>
   `;
+  const checkboxParam = elem.querySelector(
+    '#checkbox-param-map',
+  ) as HTMLInputElement;
 
   const header = elem.querySelector('#header-link') as HTMLDivElement;
   header.style.userSelect = 'none';
@@ -412,19 +402,34 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   copyUrl.disabled = true;
 
   const setUrl = (u: string) => {
-    let fullUrl = `${location.origin}?u=${u}`;
-    const checkboxStyle = elem.querySelector(
-      '#checkbox-style',
-    ) as HTMLInputElement;
+    const params: string[] = [];
+
+    params.push(`u=${u}`);
 
     if (checkboxStyle.checked) {
       for (const value of Object.values(state.state)) {
-        if (value.urlName && value.value) {
-          fullUrl += `&${value.urlName}=${encodeURIComponent(value.value)}`;
+        if (
+          value.urlName &&
+          value.value !== undefined &&
+          value.value !== '' &&
+          'paintName' in value
+        ) {
+          params.push(
+            `${value.urlName}=${encodeURIComponent(String(value.value))}`,
+          );
         }
       }
     }
 
+    if (checkboxParam.checked && ngwMap) {
+      const bounds = ngwMap.getBounds();
+      if (bounds) {
+        const [west, south, east, north] = bounds;
+        params.push(`bbox=${west},${south},${east},${north}`);
+      }
+    }
+
+    const fullUrl = `${location.origin}?${params.join('&')}`;
     history.replaceState(null, '', fullUrl);
 
     shareInput.value = fullUrl;
@@ -450,15 +455,11 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       params.has('opacity') &&
       params.has('strokeColor') &&
       params.has('strokeOpacity');
+
+    checkboxParam.checked = params.has('bbox');
   };
 
   updateCheckboxState();
-
-  if (link) {
-    getShortLinkBtn.style.display = 'none';
-    checkboxStyle.style.display = 'none';
-    checkboxStyle_label.style.display = 'none';
-  }
 
   const startLoading = (btn: HTMLButtonElement) => {
     btn.disabled = true;
@@ -497,6 +498,7 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
   getShortLinkBtn.onclick = async () => {
     startLoading(getShortLinkBtn);
     try {
+      savedUrl = null;
       const response = await fetch('/create-link', {
         method: 'POST',
         body: JSON.stringify(geojson),
@@ -507,6 +509,10 @@ function createShareContent(geojson: GeoJSON, url?: string, link = false) {
       });
       const data = await response.json();
       checkboxStyle.addEventListener('change', () => {
+        urlRuntime.set('u', data.keyname);
+        setUrl(data.keyname);
+      });
+      checkboxParam.addEventListener('change', () => {
         urlRuntime.set('u', data.keyname);
         setUrl(data.keyname);
       });
