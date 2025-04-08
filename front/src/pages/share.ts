@@ -86,26 +86,20 @@ export function createShareContent(
 
     params.push(`u=${u}`);
 
-    if (checkboxStyle.checked) {
-      for (const value of Object.values(state.state)) {
-        if (
-          value.urlName &&
-          value.value !== undefined &&
-          value.value !== '' &&
-          'paintName' in value
-        ) {
+    for (const value of Object.values(state.state)) {
+      if (
+        value.urlName &&
+        value.value !== undefined &&
+        value.value !== '' &&
+        'forShare' in value
+      ) {
+        const shareStyle = checkboxStyle.checked && value.forShare === 'style';
+        const shareMap = checkboxParam.checked && value.forShare === 'map';
+        if (shareStyle || shareMap) {
           params.push(
             `${value.urlName}=${encodeURIComponent(String(value.value))}`,
           );
         }
-      }
-    }
-
-    if (checkboxParam.checked && ngwMap) {
-      const bounds = ngwMap.getBounds();
-      if (bounds) {
-        const [west, south, east, north] = bounds;
-        params.push(`bbox=${west},${south},${east},${north}`);
       }
     }
 
@@ -138,6 +132,18 @@ export function createShareContent(
 
     checkboxParam.checked = params.has('bbox');
   };
+
+  const updateUrlParams = () => {
+    if (!savedUrl) return;
+
+    const urlParams = new URL(savedUrl, location.origin).searchParams;
+    const currentU = urlParams.get('u') || '';
+
+    setUrl(currentU);
+  };
+
+  checkboxStyle.addEventListener('change', updateUrlParams);
+  checkboxParam.addEventListener('change', updateUrlParams);
 
   updateCheckboxState();
 

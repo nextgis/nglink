@@ -4,9 +4,10 @@ interface Property<V = any> {
   value: V;
   urlName?: string;
   paintName?: keyof PathPaint;
-  forShare?: boolean;
+  forShare?: 'map' | 'style' | boolean;
   parseStr: (val: string) => void;
   urlRuntime?: boolean;
+  toString?: (val: unknown) => string;
 }
 
 type State = Record<string, Property>;
