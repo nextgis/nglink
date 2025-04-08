@@ -45,6 +45,8 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
   toggleBlock(appBlock, false);
   toggleBlock(mapBlock, true);
 
+  const bbox = state.getVal('bbox');
+
   NgwMap.create({
     target: mapBlock,
     qmsId,
@@ -52,6 +54,12 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
     bounds: bbox,
   }).then((ngwMap_) => {
     ngwMap = ngwMap_;
+
+    const updateBboxState = () => {
+      state.set('bbox', ngwMap?.getBounds());
+    };
+    ngwMap.emitter.on('moveend', updateBboxState);
+    ngwMap.emitter.on('zoomend', updateBboxState);
     if (url) {
       urlRuntime.set('u', url);
     }
@@ -187,22 +195,22 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
           const fillColorSelect = elem.querySelector(
             '.fill-color-select',
           ) as HTMLInputElement;
-          fillColorSelect.value = Color(colorInit).hex();
+          fillColorSelect.value = Color(state.getVal('color')).hex();
 
           const alphaInput = elem.querySelector(
             '.alpha-select',
           ) as HTMLInputElement;
-          alphaInput.value = String(opacityInit);
+          alphaInput.value = String(state.getVal('opacity'));
 
           const strokeColorSelect = elem.querySelector(
             '.stroke-color-select',
           ) as HTMLInputElement;
-          strokeColorSelect.value = Color(strokeColorInit).hex();
+          strokeColorSelect.value = Color(state.getVal('strokeColor')).hex();
 
           const strokeAlphaInput = elem.querySelector(
             '.stroke-alpha-select',
           ) as HTMLInputElement;
-          strokeAlphaInput.value = String(strokeOpacityInit);
+          strokeAlphaInput.value = String(state.getVal('strokeOpacity'));
 
           fillColorSelect.oninput = () => {
             state.set('color', fillColorSelect.value);
@@ -214,7 +222,7 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
             state.set('strokeColor', strokeColorSelect.value);
           };
           strokeAlphaInput.oninput = () => {
-            state.set('strokeOpacity', strokeAlphaInput.value);
+            state.set('strokeOpacity', Number(strokeAlphaInput.value));
           };
 
           return elem;
