@@ -4,17 +4,12 @@ import { urlRuntime } from '../common';
 import { state } from '../state';
 import { toggleBlock } from '../utils/dom';
 
-import { ngwMap } from './map';
-
+import type { MapConfig } from '../../../common/MapConfig';
 import type { GeoJSON } from 'geojson';
 
 let savedUrl: string | null = null;
 
-export function createShareContent(
-  geojson: GeoJSON,
-  url?: string,
-  link = false,
-) {
+export function createShareContent(geojson: GeoJSON, url?: string) {
   const elem = document.createElement('div');
   const shortLinkBtnText = 'Get short link';
   const newLinkBtnText = 'Get a new link';
@@ -86,19 +81,13 @@ export function createShareContent(
 
     params.push(`u=${u}`);
 
-    for (const value of Object.values(state.state)) {
-      if (
-        value.urlName &&
-        value.value !== undefined &&
-        value.value !== '' &&
-        'forShare' in value
-      ) {
+    for (const [key, value] of Object.entries(state.state)) {
+      const str = state.getString(key as keyof MapConfig);
+      if (value.urlName && str) {
         const shareStyle = checkboxStyle.checked && value.forShare === 'style';
         const shareMap = checkboxParam.checked && value.forShare === 'map';
         if (shareStyle || shareMap) {
-          params.push(
-            `${value.urlName}=${encodeURIComponent(String(value.value))}`,
-          );
+          params.push(`${value.urlName}=${encodeURIComponent(str)}`);
         }
       }
     }
@@ -121,6 +110,7 @@ export function createShareContent(
 
   const updateCheckboxState = () => {
     if (!savedUrl) return;
+    // TODO: use urlRuntime.set instead of URL
     const urlObj = new URL(savedUrl, location.origin);
     const params = urlObj.searchParams;
 
@@ -135,7 +125,7 @@ export function createShareContent(
 
   const updateUrlParams = () => {
     if (!savedUrl) return;
-
+    // TODO: use urlRuntime.set instead of URL
     const urlParams = new URL(savedUrl, location.origin).searchParams;
     const currentU = urlParams.get('u') || '';
 

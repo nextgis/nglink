@@ -10,31 +10,37 @@ interface Property<V = any> {
   toString?: (val: unknown) => string;
 }
 
-type State = Record<string, Property>;
+type StateFromConfig<T> = {
+  [K in keyof T]: Property<T[K]>;
+};
 
-type Listener<S extends State = State> = (state: S) => void;
+type Listener<S> = (state: S) => void;
 
-export class StateManager<S extends State = State> {
-  state: S = {} as S;
+export class StateManager<T> {
+  state: StateFromConfig<T>;
+  private listeners: Listener<StateFromConfig<T>>[] = [];
 
-  private listeners: Listener[] = [];
-
-  constructor(state: S) {
+  constructor(state: StateFromConfig<T>) {
     this.state = state;
   }
 
-  getVal(key: keyof S): any {
+  getVal<K extends keyof T>(key: K): T[K] {
     const exist = this.state[key];
-    return exist?.value;
+    return exist.value;
   }
 
-  set(key: keyof S, value: any) {
-    const exist = this.state[key] || {};
+  getString<K extends keyof T>(key: K): string {
+    const prop = this.state[key];
+    return prop.toString ? prop.toString(prop.value) : String(prop.value);
+  }
+
+  set<K extends keyof T>(key: K, value: T[K]) {
+    const exist = this.state[key] || ({} as Property<T[K]>);
     this.state[key] = { ...exist, value };
     this.notify();
   }
 
-  subscribe(cb: Listener) {
+  subscribe(cb: Listener<StateFromConfig<T>>) {
     this.listeners.push(cb);
   }
 

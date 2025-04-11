@@ -18,26 +18,10 @@ import type { GeoJSON } from 'geojson';
 export const mapBlock = document.getElementById('map') as HTMLElement;
 
 const qmsId = state.getVal('qmsId');
-const bbox = state.getVal('bbox');
-const colorInit = state.getVal('color');
 const opacityInit = state.getVal('opacity');
-const strokeColorInit = state.getVal('strokeColor');
-const strokeOpacityInit = state.getVal('strokeOpacity');
 
 const padding = state.getVal('fitPadding');
 const maxZoom = state.getVal('fitMaxZoom');
-
-const fitOffsetStr = state.getVal('fitOffset');
-let offset: [number, number] | undefined = undefined;
-if (fitOffsetStr) {
-  const offsetArray = fitOffsetStr.split(',').map(Number);
-  if (offsetArray.length) {
-    offset =
-      offsetArray.length === 1
-        ? [offsetArray[0], offsetArray[0]]
-        : [offsetArray[0], offsetArray[1]];
-  }
-}
 
 export let ngwMap: NgwMap | undefined;
 
@@ -77,7 +61,7 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
       title: 'Share URL',
       onClick: () => {
         const dialog = new Dialog();
-        dialog.updateContent(createShareContent(geojson, url, link));
+        dialog.updateContent(createShareContent(geojson, url));
         dialog.show();
       },
     });
@@ -115,6 +99,7 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
       .then((layer) => {
         if (!bbox) {
           const fitOptions: FitOptions = {};
+          const offset = state.getVal('fitOffset');
           if (offset) {
             fitOptions.offset = offset;
           }
@@ -240,7 +225,7 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
 
     for (const value of Object.values(state)) {
       if (value.paintName && value.value !== undefined) {
-        paint[value.paintName as keyof PathPaint] = value.value;
+        paint[value.paintName as keyof PathPaint] = value.value as any;
       }
     }
 

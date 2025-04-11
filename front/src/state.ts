@@ -1,6 +1,8 @@
 import { StateManager } from './StateManager';
 
-export const state = new StateManager({
+import type { MapConfig } from '../../common/MapConfig';
+
+export const state = new StateManager<MapConfig>({
   opacity: {
     value: 0.6,
     urlName: 'opacity',
@@ -46,14 +48,14 @@ export const state = new StateManager({
     parseStr: (val) => Number(val),
   },
   bbox: {
-    value: '',
+    value: undefined,
     urlName: 'bbox',
     forShare: 'map',
     parseStr: (val) => val.split(',').map(Number),
     toString: (val) => (Array.isArray(val) ? val.join(',') : String(val)),
   },
   fitOffset: {
-    value: undefined as [number, number] | undefined,
+    value: undefined,
     urlName: 'fitoffset',
     parseStr: (val) => {
       const offsetArray = val.split(',').map(Number);
@@ -65,7 +67,7 @@ export const state = new StateManager({
     },
   },
   fitPadding: {
-    value: undefined as number | undefined,
+    value: undefined,
     urlName: 'fitpadding',
     parseStr: (val) => Number(val),
   },

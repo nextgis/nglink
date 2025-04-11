@@ -21,7 +21,12 @@ for (const [key, s] of Object.entries(state.state)) {
 state.subscribe((values) => {
   for (const item of Object.values(values)) {
     if (item.urlRuntime && item.urlName) {
-      urlRuntime.set(item.urlName, item.value);
+      const val = item.value;
+      if (val) {
+        urlRuntime.set(item.urlName, val.toString());
+      } else {
+        urlRuntime.remove(item.urlName);
+      }
     }
   }
 });
