@@ -31,7 +31,16 @@ export class StateManager<T> {
 
   getString<K extends keyof T>(key: K): string {
     const prop = this.state[key];
-    return prop.toString ? prop.toString(prop.value) : String(prop.value);
+
+    if (
+      prop.toString &&
+      Object.prototype.hasOwnProperty.call(prop, 'toString')
+    ) {
+      return prop.toString(prop.value);
+    }
+    return typeof prop.value === 'object'
+      ? JSON.stringify(prop.value)
+      : String(prop.value);
   }
 
   set<K extends keyof T>(key: K, value: T[K]) {
