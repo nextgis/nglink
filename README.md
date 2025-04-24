@@ -60,6 +60,9 @@ Generates a PNG image of the map with the specified parameters.
 - **Parameters:**
   - `u`: URL of the GeoJSON data.
   - `color`: Fill color for the GeoJSON layer (default: `blue`).
+  - `opacity`: Fill opacity (default: `0.6`).
+  - `strokeColor`: Stroke color (default: uses the same value as color if not specified).
+  - `strokeOpacity`: Stroke opacity (default: `1`).
   - `bbox`: Bounding box in `minLng,minLat,maxLng,maxLat` format.
   - `qmsid`: QMS ID for specific map services.
   - `fitoffset`: Offset for fitting the layer, format `width,height` or single `size`.

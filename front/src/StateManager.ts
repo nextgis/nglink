@@ -7,7 +7,7 @@ interface Property<V = any> {
   forShare?: 'map' | 'style' | boolean;
   parseStr: (val: string) => void;
   urlRuntime?: boolean;
-  toString?: (val: unknown) => string;
+  toString?: (val: V) => string;
 }
 
 type StateFromConfig<T> = {

@@ -9,7 +9,7 @@ export const state = new StateManager<MapConfig>({
     paintName: 'fillOpacity',
     forShare: 'style',
     parseStr: (val) => Number(val),
-    urlRuntime: true,
+    urlRuntime: false,
   },
   color: {
     value: 'blue',
@@ -17,7 +17,7 @@ export const state = new StateManager<MapConfig>({
     paintName: 'fillColor',
     forShare: 'style',
     parseStr: (val) => String(val),
-    urlRuntime: true,
+    urlRuntime: false,
   },
   strokeOpacity: {
     value: 1,
@@ -25,15 +25,15 @@ export const state = new StateManager<MapConfig>({
     paintName: 'strokeOpacity',
     forShare: 'style',
     parseStr: (val) => Number(val),
-    urlRuntime: true,
+    urlRuntime: false,
   },
   strokeColor: {
-    value: 'blue',
+    value: '',
     urlName: 'strokeColor',
     paintName: 'strokeColor',
     forShare: 'style',
     parseStr: (val) => String(val),
-    urlRuntime: true,
+    urlRuntime: false,
   },
   url: {
     value: '',

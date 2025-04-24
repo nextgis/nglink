@@ -1,3 +1,5 @@
+import type { LngLatBoundsArray } from '@nextgis/utils';
+
 export interface MapConfig {
   opacity?: number;
   color?: string;
@@ -5,7 +7,7 @@ export interface MapConfig {
   strokeColor?: string;
   url?: string;
   qmsId?: number;
-  bbox?: number[] | [number, number, number, number];
+  bbox?: LngLatBoundsArray;
   fitOffset?: [number, number];
   fitPadding?: number;
   fitMaxZoom?: number;

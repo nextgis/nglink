@@ -17,6 +17,9 @@ for (const [key, s] of Object.entries(state.state)) {
     }
   }
 }
+if (!state.getVal('strokeColor')) {
+  state.set('strokeColor', state.getVal('color'));
+}
 
 state.subscribe((values) => {
   for (const item of Object.values(values)) {
@@ -54,7 +57,7 @@ async function fetchData(url: string) {
     if (response.ok) {
       hideLoading();
       if (data.geojson) {
-        showMap(data.geojson, url, data.link);
+        showMap(data.geojson, url);
       } else {
         throw new Error('No GeoJSON data');
       }

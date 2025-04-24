@@ -17,17 +17,16 @@ import type { GeoJSON } from 'geojson';
 
 export const mapBlock = document.getElementById('map') as HTMLElement;
 
-const qmsId = state.getVal('qmsId');
-const opacityInit = state.getVal('opacity');
-
-const padding = state.getVal('fitPadding');
-const maxZoom = state.getVal('fitMaxZoom');
-
 export let ngwMap: NgwMap | undefined;
 
-export function showMap(geojson: GeoJSON, url?: string, link = false) {
+export function showMap(geojson: GeoJSON, url?: string) {
   toggleBlock(appBlock, false);
   toggleBlock(mapBlock, true);
+
+  const padding = state.getVal('fitPadding');
+  const maxZoom = state.getVal('fitMaxZoom');
+  const qmsId = state.getVal('qmsId');
+  const opacityInit = state.getVal('opacity');
 
   const bbox = state.getVal('bbox');
 
@@ -232,3 +231,11 @@ export function showMap(geojson: GeoJSON, url?: string, link = false) {
     ngwMap?.updateLayerPaint('layer', paint);
   });
 }
+
+// this is a workaround to make showMap available for generateImage
+declare global {
+  interface Window {
+    showMap: typeof showMap;
+  }
+}
+window.showMap = showMap;

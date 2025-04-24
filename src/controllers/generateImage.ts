@@ -3,16 +3,26 @@ import puppeteer from 'puppeteer';
 
 export const generateImage: RequestHandler = async (req: Request, res) => {
   try {
-    const u = req.query.u?.toString();
-    const color = req.query.color?.toString();
-    const bbox = req.query.bbox;
-    const qmsId = req.query.qmsid;
-    const width = req.query.width ? Number(req.query.width) : 400;
-    const height = req.query.height ? Number(req.query.height) : 200;
-    const fitOffset = req.query.fitoffset;
-    const fitPadding = req.query.fitpadding ? Number(req.query.fitpadding) : 5;
-    const fitMaxZoom = req.query.fitmaxzoom
-      ? Number(req.query.fitmaxzoom)
+    const params = req.method === 'POST' ? req.body : req.query;
+
+    const geojson = params.geojson;
+    const u = params.u?.toString();
+    const color = params.color?.toString();
+    const opacity =
+      params.opacity !== undefined ? Number(params.opacity) : undefined;
+    const strokeColor = params.strokeColor?.toString();
+    const strokeOpacity =
+      params.strokeOpacity !== undefined
+        ? Number(params.strokeOpacity)
+        : undefined;
+    const bbox = params.bbox;
+    const qmsId = params.qmsid;
+    const width = params.width ? Number(params.width) : 400;
+    const height = params.height ? Number(params.height) : 200;
+    const fitOffset = params.fitoffset;
+    const fitPadding = params.fitpadding ? Number(params.fitpadding) : 5;
+    const fitMaxZoom = params.fitmaxzoom
+      ? Number(params.fitmaxzoom)
       : undefined;
     const protocol = req.protocol;
 
@@ -22,8 +32,10 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
     }
 
     // Validate required parameter
-    if (!u) {
-      return res.status(400).json({ error: 'Parameter "u" is required.' });
+    if (!u && !geojson) {
+      return res
+        .status(400)
+        .json({ error: 'Parameter "u" or "geojson" is required.' });
     }
 
     const browser = await puppeteer.launch({
@@ -38,33 +50,44 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
       height,
     });
 
-    let url = `${protocol}://${hostname}/?u=${u}`;
+    const base = `${protocol}://${hostname}/`;
+    const urlObj = new URL(base);
 
-    if (color) {
-      url += `&color=${encodeURIComponent(color)}`;
+    if (u) urlObj.searchParams.set('u', u);
+    if (color) urlObj.searchParams.set('color', color);
+    if (opacity !== undefined) {
+      urlObj.searchParams.set('opacity', opacity.toString());
     }
-    if (bbox) {
-      url += `&bbox=${bbox}`;
-    }
-    if (qmsId) {
-      url += `&qmsid=${qmsId}`;
-    }
-    if (fitOffset) {
-      url += `&fitoffset=${fitOffset}`;
-    }
+    if (strokeColor) urlObj.searchParams.set('strokeColor', strokeColor);
+    if (strokeOpacity !== undefined)
+      urlObj.searchParams.set('strokeOpacity', strokeOpacity.toString());
+    if (bbox) urlObj.searchParams.set('bbox', bbox.toString());
+    if (qmsId) urlObj.searchParams.set('qmsid', qmsId.toString());
+    if (fitOffset) urlObj.searchParams.set('fitoffset', fitOffset.toString());
     if (fitPadding !== undefined) {
-      url += `&fitpadding=${fitPadding}`;
+      urlObj.searchParams.set('fitpadding', fitPadding.toString());
     }
     if (fitMaxZoom !== undefined) {
-      url += `&fitmaxzoom=${fitMaxZoom}`;
+      urlObj.searchParams.set('fitmaxzoom', fitMaxZoom.toString());
     }
 
-    await page.goto(url);
-    await page.waitForNavigation({
-      waitUntil: 'networkidle0',
-    });
+    const url = urlObj.toString();
+
+    await page.goto(url, { waitUntil: 'networkidle0' });
+    if (geojson) {
+      console.log(url);
+      await page.evaluate((data) => {
+        // @ts-expect-error workaround for missing types
+        showMap(data);
+      }, geojson);
+      await page.waitForNetworkIdle();
+    }
+
     const el = await page.waitForSelector('.maplibregl-control-container');
-    await el.evaluate((el) => el.remove());
+    await el.evaluate((el) => {
+      el.remove();
+    });
+
     const screenshot = await page.screenshot({
       type: 'png',
       encoding: 'binary',
