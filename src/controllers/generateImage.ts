@@ -77,10 +77,12 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
     if (geojson) {
       console.log(url);
       await page.evaluate((data) => {
-        // @ts-expect-error workaround for missing types
-        showMap(data);
+        return new Promise((resolve) => {
+          // @ts-expect-error workaround for missing types
+          window.showMap(data).then(resolve);
+        });
       }, geojson);
-      await page.waitForNetworkIdle();
+      // await page.waitForNetworkIdle();
     }
 
     const el = await page.waitForSelector('.maplibregl-control-container');

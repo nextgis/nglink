@@ -19,54 +19,70 @@ export const mapBlock = document.getElementById('map') as HTMLElement;
 
 export let ngwMap: NgwMap | undefined;
 
-export function showMap(geojson: GeoJSON, url?: string) {
-  toggleBlock(appBlock, false);
-  toggleBlock(mapBlock, true);
+export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
+  return new Promise((resolve) => {
+    toggleBlock(appBlock, false);
+    toggleBlock(mapBlock, true);
 
-  const padding = state.getVal('fitPadding');
-  const maxZoom = state.getVal('fitMaxZoom');
-  const qmsId = state.getVal('qmsId');
-  const opacityInit = state.getVal('opacity');
+    const padding = state.getVal('fitPadding');
+    const maxZoom = state.getVal('fitMaxZoom');
+    const qmsId = state.getVal('qmsId');
+    const opacityInit = state.getVal('opacity');
 
-  const bbox = state.getVal('bbox');
+    const bbox = state.getVal('bbox');
 
-  NgwMap.create({
-    target: mapBlock,
-    qmsId,
-    osm: !qmsId ? true : undefined,
-    bounds: bbox,
-  }).then((ngwMap_) => {
-    ngwMap = ngwMap_;
+    NgwMap.create({
+      target: mapBlock,
+      qmsId,
+      osm: !qmsId ? true : undefined,
+      bounds: bbox,
+    }).then(async (ngwMap_) => {
+      ngwMap = ngwMap_;
+      const map = ngwMap.mapAdapter.map!;
 
-    const updateBboxState = () => {
-      state.set('bbox', ngwMap?.getBounds());
-    };
-    ngwMap.emitter.on('moveend', updateBboxState);
-    ngwMap.emitter.on('zoomend', updateBboxState);
-    if (url) {
-      urlRuntime.set('u', url);
-    }
-    ngwMap.addControl('BUTTON', 'top-left', {
-      html: makeIcon(mdiRefresh),
-      title: 'Refresh',
-      onClick: () => {
-        dataInput.value = '';
-        showInput();
-      },
-    });
+      const waitForIdle = () =>
+        new Promise<void>((done) => {
+          if (map.loaded() && map.areTilesLoaded()) {
+            done();
+          } else {
+            const checkIdle = () => {
+              if (map.areTilesLoaded()) {
+                map.off('idle', checkIdle);
+                done();
+              }
+            };
+            map.on('idle', checkIdle);
+          }
+        });
 
-    ngwMap.addControl('BUTTON', 'top-left', {
-      html: makeIcon(mdiShare),
-      title: 'Share URL',
-      onClick: () => {
-        const dialog = new Dialog();
-        dialog.updateContent(createShareContent(geojson, url));
-        dialog.show();
-      },
-    });
+      const updateBboxState = () => {
+        state.set('bbox', ngwMap?.getBounds());
+      };
+      ngwMap.emitter.on('moveend', updateBboxState);
+      ngwMap.emitter.on('zoomend', updateBboxState);
+      if (url) {
+        urlRuntime.set('u', url);
+      }
+      ngwMap.addControl('BUTTON', 'top-left', {
+        html: makeIcon(mdiRefresh),
+        title: 'Refresh',
+        onClick: () => {
+          dataInput.value = '';
+          showInput();
+        },
+      });
 
-    ngwMap
-      .addGeoJsonLayer({
+      ngwMap.addControl('BUTTON', 'top-left', {
+        html: makeIcon(mdiShare),
+        title: 'Share URL',
+        onClick: () => {
+          const dialog = new Dialog();
+          dialog.updateContent(createShareContent(geojson, url));
+          dialog.show();
+        },
+      });
+
+      const layer = await ngwMap.addGeoJsonLayer({
         data: JSON.parse(JSON.stringify(geojson)),
         id: 'layer',
         paint: {
@@ -94,30 +110,30 @@ export function showMap(geojson: GeoJSON, url?: string) {
             return element;
           },
         },
-      })
-      .then((layer) => {
-        if (!bbox) {
-          const fitOptions: FitOptions = {};
-          const offset = state.getVal('fitOffset');
-          if (offset) {
-            fitOptions.offset = offset;
-          }
-          if (padding !== undefined) {
-            fitOptions.padding = padding;
-          }
-          if (maxZoom !== undefined) {
-            fitOptions.maxZoom = maxZoom;
-          }
-
-          ngwMap?.fitLayer(layer, fitOptions);
-        }
       });
 
-    const paintControl = ngwMap.createControl(
-      {
-        onAdd: () => {
-          const elem = document.createElement('div');
-          elem.innerHTML = `
+      if (!bbox) {
+        const fitOptions: FitOptions = {};
+        const offset = state.getVal('fitOffset');
+        if (offset) {
+          fitOptions.offset = offset;
+        }
+        if (padding !== undefined) {
+          fitOptions.padding = padding;
+        }
+        if (maxZoom !== undefined) {
+          fitOptions.maxZoom = maxZoom;
+        }
+
+        ngwMap?.fitLayer(layer, fitOptions);
+      }
+      await waitForIdle();
+
+      const paintControl = ngwMap.createControl(
+        {
+          onAdd: () => {
+            const elem = document.createElement('div');
+            elem.innerHTML = `
           <div id="style-control">
             <div class="color-control">
                 <input class="fill-color-select" type="color" />
@@ -132,103 +148,106 @@ export function showMap(geojson: GeoJSON, url?: string) {
         </div>
           `;
 
-          const containers = elem.querySelectorAll(
-            '.color-control',
-          ) as NodeListOf<HTMLDivElement>;
-          containers.forEach((container) => {
-            container.style.display = 'flex';
-            container.style.alignItems = 'center';
-            container.style.width = '207px';
-            container.style.height = '35px';
-            container.style.cursor = 'pointer';
-            container.style.borderRadius = '4px';
-          });
+            const containers = elem.querySelectorAll(
+              '.color-control',
+            ) as NodeListOf<HTMLDivElement>;
+            containers.forEach((container) => {
+              container.style.display = 'flex';
+              container.style.alignItems = 'center';
+              container.style.width = '207px';
+              container.style.height = '35px';
+              container.style.cursor = 'pointer';
+              container.style.borderRadius = '4px';
+            });
 
-          const labels = elem.querySelectorAll(
-            'label',
-          ) as NodeListOf<HTMLLabelElement>;
-          labels.forEach((label) => {
-            label.style.fontSize = '16px';
-            label.style.fontWeight = 'bold';
-            label.style.cursor = 'pointer';
-            label.style.marginLeft = '10px';
-          });
+            const labels = elem.querySelectorAll(
+              'label',
+            ) as NodeListOf<HTMLLabelElement>;
+            labels.forEach((label) => {
+              label.style.fontSize = '16px';
+              label.style.fontWeight = 'bold';
+              label.style.cursor = 'pointer';
+              label.style.marginLeft = '10px';
+            });
 
-          const colorInputs = elem.querySelectorAll(
-            '.fill-color-select, .stroke-color-select',
-          ) as NodeListOf<HTMLInputElement>;
-          colorInputs.forEach((colorInput) => {
-            colorInput.style.width = '18%';
-            colorInput.style.border = 'none';
-            colorInput.style.background = '#fff';
-            colorInput.style.margin = '0 7px';
-            colorInput.style.cursor = 'pointer';
-            colorInput.style.padding = '0';
-          });
+            const colorInputs = elem.querySelectorAll(
+              '.fill-color-select, .stroke-color-select',
+            ) as NodeListOf<HTMLInputElement>;
+            colorInputs.forEach((colorInput) => {
+              colorInput.style.width = '18%';
+              colorInput.style.border = 'none';
+              colorInput.style.background = '#fff';
+              colorInput.style.margin = '0 7px';
+              colorInput.style.cursor = 'pointer';
+              colorInput.style.padding = '0';
+            });
 
-          const alphaInputs = elem.querySelectorAll(
-            '.alpha-select, .stroke-alpha-select',
-          ) as NodeListOf<HTMLInputElement>;
-          alphaInputs.forEach((alphaInput) => {
-            alphaInput.value = String(opacityInit);
-            alphaInput.style.width = '40px';
-            alphaInput.style.cursor = 'pointer';
-            alphaInput.style.height = '2px';
-          });
+            const alphaInputs = elem.querySelectorAll(
+              '.alpha-select, .stroke-alpha-select',
+            ) as NodeListOf<HTMLInputElement>;
+            alphaInputs.forEach((alphaInput) => {
+              alphaInput.value = String(opacityInit);
+              alphaInput.style.width = '40px';
+              alphaInput.style.cursor = 'pointer';
+              alphaInput.style.height = '2px';
+            });
 
-          const fillColorSelect = elem.querySelector(
-            '.fill-color-select',
-          ) as HTMLInputElement;
-          fillColorSelect.value = Color(state.getVal('color')).hex();
+            const fillColorSelect = elem.querySelector(
+              '.fill-color-select',
+            ) as HTMLInputElement;
+            fillColorSelect.value = Color(state.getVal('color')).hex();
 
-          const alphaInput = elem.querySelector(
-            '.alpha-select',
-          ) as HTMLInputElement;
-          alphaInput.value = String(state.getVal('opacity'));
+            const alphaInput = elem.querySelector(
+              '.alpha-select',
+            ) as HTMLInputElement;
+            alphaInput.value = String(state.getVal('opacity'));
 
-          const strokeColorSelect = elem.querySelector(
-            '.stroke-color-select',
-          ) as HTMLInputElement;
-          strokeColorSelect.value = Color(state.getVal('strokeColor')).hex();
+            const strokeColorSelect = elem.querySelector(
+              '.stroke-color-select',
+            ) as HTMLInputElement;
+            strokeColorSelect.value = Color(state.getVal('strokeColor')).hex();
 
-          const strokeAlphaInput = elem.querySelector(
-            '.stroke-alpha-select',
-          ) as HTMLInputElement;
-          strokeAlphaInput.value = String(state.getVal('strokeOpacity'));
+            const strokeAlphaInput = elem.querySelector(
+              '.stroke-alpha-select',
+            ) as HTMLInputElement;
+            strokeAlphaInput.value = String(state.getVal('strokeOpacity'));
 
-          fillColorSelect.oninput = () => {
-            state.set('color', fillColorSelect.value);
-          };
-          alphaInput.oninput = () => {
-            state.set('opacity', Number(alphaInput.value));
-          };
-          strokeColorSelect.oninput = () => {
-            state.set('strokeColor', strokeColorSelect.value);
-          };
-          strokeAlphaInput.oninput = () => {
-            state.set('strokeOpacity', Number(strokeAlphaInput.value));
-          };
+            fillColorSelect.oninput = () => {
+              state.set('color', fillColorSelect.value);
+            };
+            alphaInput.oninput = () => {
+              state.set('opacity', Number(alphaInput.value));
+            };
+            strokeColorSelect.oninput = () => {
+              state.set('strokeColor', strokeColorSelect.value);
+            };
+            strokeAlphaInput.oninput = () => {
+              state.set('strokeOpacity', Number(strokeAlphaInput.value));
+            };
 
-          return elem;
+            return elem;
+          },
+          onRemove: () => null,
         },
-        onRemove: () => null,
-      },
-      { bar: true, addClass: 'paint-control' },
-    );
+        { bar: true, addClass: 'paint-control' },
+      );
 
-    ngwMap.addControl(paintControl, 'top-right');
-  });
+      ngwMap.addControl(paintControl, 'top-right');
 
-  state.subscribe((state) => {
-    const paint = {} as PathPaint;
+      resolve();
+    });
 
-    for (const value of Object.values(state)) {
-      if (value.paintName && value.value !== undefined) {
-        paint[value.paintName as keyof PathPaint] = value.value as any;
+    state.subscribe((state) => {
+      const paint = {} as PathPaint;
+
+      for (const value of Object.values(state)) {
+        if (value.paintName && value.value !== undefined) {
+          paint[value.paintName as keyof PathPaint] = value.value as any;
+        }
       }
-    }
 
-    ngwMap?.updateLayerPaint('layer', paint);
+      ngwMap?.updateLayerPaint('layer', paint);
+    });
   });
 }
 
