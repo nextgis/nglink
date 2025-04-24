@@ -26,6 +26,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.json",
+    "../common/**/*.ts",
   ],
   "exclude": [
     "node_modules"

@@ -13,6 +13,7 @@ FROM node:20-alpine as front
 COPY ./front/package.json ./front/package-lock.json ./
 RUN npm ci
 COPY ./front ./
+COPY ./common ../common
 RUN npm run prod
 
 # Start production image build
