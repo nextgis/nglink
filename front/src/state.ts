@@ -35,6 +35,14 @@ export const state = new StateManager<MapConfig>({
     parseStr: (val) => String(val),
     urlRuntime: false,
   },
+  weight: {
+    value: '',
+    urlName: 'weight',
+    paintName: 'weight',
+    forShare: 'style',
+    parseStr: (val) => Number(val),
+    urlRuntime: false,
+  },
   url: {
     value: '',
     urlName: 'u',

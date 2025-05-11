@@ -15,6 +15,8 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
       params.strokeOpacity !== undefined
         ? Number(params.strokeOpacity)
         : undefined;
+    const weight =
+      params.weight !== undefined ? Number(params.weight) : undefined;
     const bbox = params.bbox;
     const qmsId = params.qmsid;
     const width = params.width ? Number(params.width) : 400;
@@ -59,8 +61,12 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
       urlObj.searchParams.set('opacity', opacity.toString());
     }
     if (strokeColor) urlObj.searchParams.set('strokeColor', strokeColor);
-    if (strokeOpacity !== undefined)
+    if (strokeOpacity !== undefined) {
       urlObj.searchParams.set('strokeOpacity', strokeOpacity.toString());
+    }
+    if (weight !== undefined) {
+      urlObj.searchParams.set('weight', weight.toString());
+    }
     if (bbox) urlObj.searchParams.set('bbox', bbox.toString());
     if (qmsId) urlObj.searchParams.set('qmsid', qmsId.toString());
     if (fitOffset) urlObj.searchParams.set('fitoffset', fitOffset.toString());

@@ -16,7 +16,7 @@
   "dependencies": {
     "@mdi/js": "^7.4.47",
     "@nextgis/dialog": "^3.0.0-alpha.18",
-    "@nextgis/ngw-maplibre-gl": "^3.0.0-alpha.19",
+    "@nextgis/ngw-maplibre-gl": "^3.0.0-alpha.20",
     "@nextgis/url-runtime-params": "^3.0.0-alpha.18",
     "@nextgis/webmap": "^3.0.0-alpha.18",
     "color": "^5.0.0",
