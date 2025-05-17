@@ -84,4 +84,11 @@ export const state = new StateManager<MapConfig>({
     urlName: 'fitmaxzoom',
     parseStr: (val) => Number(val),
   },
+  scale: {
+    value: false,
+    urlName: 'scale',
+    forShare: 'map',
+    parseStr: (val) => val === '1' || val === 'true',
+    toString: (val) => (val ? '1' : '0'),
+  },
 });

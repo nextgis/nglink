@@ -2,7 +2,6 @@ import { mdiRefresh, mdiShare } from '@mdi/js';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-maplibre-gl';
 import Color from 'color';
-import maplibregl from 'maplibre-gl';
 
 import { showInput, urlRuntime } from '../common';
 import { appBlock, dataInput } from '../pages/home';
@@ -41,22 +40,114 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
       ngwMap = ngwMap_;
       const map = ngwMap.mapAdapter.map!;
 
-      const scale = new maplibregl.ScaleControl({
-        maxWidth: 100,
-        unit: 'metric',
-      });
-      map.addControl(scale, 'bottom-left');
+      let isScaleShown =
+        state.getVal('scale') ||
+        new URLSearchParams(window.location.search).get('scale') === '1';
 
-        const scaleElem = document.querySelector(
-          '.maplibregl-ctrl-scale',
-        ) as HTMLElement;
-        if (scaleElem) {
-          scaleElem.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-          scaleElem.style.border = '1px solid #999';
-          scaleElem.style.borderRadius = '4px';
-          scaleElem.style.padding = '2px 6px';
-          scaleElem.style.fontSize = '14px';
+      const scaleButton = document.createElement('button');
+      scaleButton.textContent = isScaleShown
+        ? 'Delete a scale ruler'
+        : 'Add a scale ruler';
+
+      scaleButton.style.position = 'absolute';
+      scaleButton.style.top = '157px';
+      scaleButton.style.left = '10px';
+      scaleButton.style.zIndex = '1000';
+      scaleButton.style.padding = '8px 12px';
+      scaleButton.style.fontSize = '14px';
+      scaleButton.style.backgroundColor = 'white';
+      scaleButton.style.border = '1px solid #ccc';
+      scaleButton.style.borderRadius = '4px';
+      scaleButton.style.cursor = 'pointer';
+      scaleButton.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+
+      map.getContainer().appendChild(scaleButton);
+
+      function addScale() {
+        if (document.getElementById('custom-scale')) return;
+
+        const customScale = document.createElement('div');
+        customScale.id = 'custom-scale';
+        customScale.style.position = 'absolute';
+        customScale.style.bottom = '20px';
+        customScale.style.left = '10px';
+        customScale.style.zIndex = '1000';
+        document.body.appendChild(customScale);
+
+        updateScale();
+        map.on('move', updateScale);
+        map.on('zoom', updateScale);
+      }
+
+      function removeScale() {
+        document.getElementById('custom-scale')?.remove();
+        map.off('move', updateScale);
+        map.off('zoom', updateScale);
+      }
+
+      function updateScale() {
+        const scaleElement = document.getElementById('custom-scale');
+        if (!scaleElement) return;
+
+        const scaleWidthPx = 100;
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        const metersPerPixel =
+          (40075016.686 * Math.abs(Math.cos((center.lat * Math.PI) / 180))) /
+          (Math.pow(2, zoom) * 256);
+        const scaleMeters = scaleWidthPx * metersPerPixel;
+        const middleMeters = scaleMeters / 2;
+
+        const endLabel =
+          scaleMeters >= 1000
+            ? `${(scaleMeters / 1000).toFixed(1)} км`
+            : `${scaleMeters.toFixed(0)} м`;
+
+        const middleLabel =
+          middleMeters >= 1000
+            ? `${(middleMeters / 1000).toFixed(1)} км`
+            : `${middleMeters.toFixed(0)} м`;
+
+        scaleElement.innerHTML = `
+        <div style="display: flex; width: ${scaleWidthPx}px; height: 10px; border: 1px solid #000;">
+          <div style="flex: 1; background: black;"></div>
+          <div style="flex: 1; background: white;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; width: ${scaleWidthPx}px; font-size: 10px; white-space: nowrap;">
+          <span>0</span>
+          <span style="margin-left: -8px;">${middleLabel}</span>
+          <span>${endLabel}</span>
+        </div>
+      `;
+      }
+
+      function toggleScale() {
+        const shown = !!document.getElementById('custom-scale');
+        if (shown) {
+          removeScale();
+          scaleButton.textContent = 'Add a scale ruler';
+          isScaleShown = false;
+        } else {
+          addScale();
+          scaleButton.textContent = 'Delete a scale ruler';
+          isScaleShown = true;
         }
+
+        const url = new URL(window.location.href);
+        if (isScaleShown) {
+          url.searchParams.set('scale', '1');
+        } else {
+          url.searchParams.delete('scale');
+        }
+        window.history.replaceState({}, '', url.toString());
+      }
+
+      scaleButton.addEventListener('click', toggleScale);
+
+      if (isScaleShown) {
+        addScale();
+        scaleButton.textContent = 'Delete a scale ruler';
+      }
 
       const waitForIdle = () =>
         new Promise<void>((done) => {
