@@ -12,4 +12,5 @@ export interface MapConfig {
   fitOffset?: [number, number];
   fitPadding?: number;
   fitMaxZoom?: number;
+  scale?: boolean;
 }
