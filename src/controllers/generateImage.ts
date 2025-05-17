@@ -79,16 +79,14 @@ export const generateImage: RequestHandler = async (req: Request, res) => {
 
     const url = urlObj.toString();
 
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
     if (geojson) {
-      console.log(url);
       await page.evaluate((data) => {
         return new Promise((resolve) => {
           // @ts-expect-error workaround for missing types
           window.showMap(data).then(resolve);
         });
       }, geojson);
-      // await page.waitForNetworkIdle();
     }
 
     const el = await page.waitForSelector('.maplibregl-control-container');
