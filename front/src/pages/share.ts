@@ -15,6 +15,9 @@ export function createShareContent(geojson: GeoJSON, url?: string) {
   const newLinkBtnText = 'Get a new link';
   const getImageLinkBtnText = 'Get image';
 
+  const initialUrlParams = new URLSearchParams(window.location.search);
+  const initialScale = initialUrlParams.get('scale');
+
   if (savedUrl) {
     url = savedUrl.split('?u=')[1];
   }
@@ -90,6 +93,15 @@ export function createShareContent(geojson: GeoJSON, url?: string) {
           params.push(`${value.urlName}=${encodeURIComponent(str)}`);
         }
       }
+    }
+
+    if (
+      initialScale &&
+      initialScale !== '0' &&
+      !params.some((p) => p.startsWith('scale=')) &&
+      !(savedUrl && savedUrl.includes('scale='))
+    ) {
+      params.push(`scale=${encodeURIComponent(initialScale)}`);
     }
 
     const fullUrl = `${location.origin}?${params.join('&')}`;
