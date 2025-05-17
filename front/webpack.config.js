@@ -73,7 +73,6 @@ module.exports = (env, argv) => {
     target: isProd ? 'browserslist' : 'web',
 
     plugins: [
-      new ForkTsCheckerWebpackPlugin(),
       new ESLintPlugin({
         fix: true,
         files: ['src/'],
@@ -105,6 +104,8 @@ module.exports = (env, argv) => {
     config.plugins.push(
       new MiniCssExtractPlugin({ filename: '[name][hash:5].css' }),
     );
+  } else{
+    config.plugins.push(new ForkTsCheckerWebpackPlugin());
   }
 
   // const BundleAnalyzerPlugin =
