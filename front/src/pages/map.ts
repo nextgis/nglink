@@ -2,6 +2,7 @@ import { mdiRefresh, mdiShare } from '@mdi/js';
 import Dialog from '@nextgis/dialog';
 import NgwMap from '@nextgis/ngw-maplibre-gl';
 import Color from 'color';
+import maplibregl from 'maplibre-gl';
 
 import { showInput, urlRuntime } from '../common';
 import { appBlock, dataInput } from '../pages/home';
@@ -39,6 +40,23 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
     }).then(async (ngwMap_) => {
       ngwMap = ngwMap_;
       const map = ngwMap.mapAdapter.map!;
+
+      const scale = new maplibregl.ScaleControl({
+        maxWidth: 100,
+        unit: 'metric',
+      });
+      map.addControl(scale, 'bottom-left');
+
+        const scaleElem = document.querySelector(
+          '.maplibregl-ctrl-scale',
+        ) as HTMLElement;
+        if (scaleElem) {
+          scaleElem.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+          scaleElem.style.border = '1px solid #999';
+          scaleElem.style.borderRadius = '4px';
+          scaleElem.style.padding = '2px 6px';
+          scaleElem.style.fontSize = '14px';
+        }
 
       const waitForIdle = () =>
         new Promise<void>((done) => {
