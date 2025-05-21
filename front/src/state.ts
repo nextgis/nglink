@@ -90,5 +90,6 @@ export const state = new StateManager<MapConfig>({
     forShare: 'map',
     parseStr: (val) => val === '1' || val === 'true',
     toString: (val) => (val ? '1' : '0'),
+    urlRuntime: true,
   },
 });

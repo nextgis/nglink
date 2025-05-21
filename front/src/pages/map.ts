@@ -40,9 +40,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
       ngwMap = ngwMap_;
       const map = ngwMap.mapAdapter.map!;
 
-      let isScaleShown =
-        state.getVal('scale') ||
-        new URLSearchParams(window.location.search).get('scale') === '1';
+      const isScaleShown = state.getVal('scale');
 
       const scaleButton = document.createElement('button');
       scaleButton.textContent = isScaleShown
@@ -62,6 +60,18 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
       scaleButton.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
 
       map.getContainer().appendChild(scaleButton);
+
+      state.subscribe((currentState) => {
+        const shown = currentState.scale?.value ?? false;
+        const scaleExists = !!document.getElementById('custom-scale');
+        if (shown && !scaleExists) {
+          addScale();
+          scaleButton.textContent = 'Delete a scale ruler';
+        } else if (!shown && scaleExists) {
+          removeScale();
+          scaleButton.textContent = 'Add a scale ruler';
+        }
+      });
 
       function addScale() {
         if (document.getElementById('custom-scale')) return;
@@ -85,6 +95,31 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
         map.off('zoom', updateScale);
       }
 
+      function getDecimalRoundNum(d: number): number {
+        const multiplier = Math.pow(10, Math.ceil(-Math.log(d) / Math.LN10));
+        return Math.round(d * multiplier) / multiplier;
+      }
+
+      function getRoundNum(num: number): number {
+        const pow10 = Math.pow(10, `${Math.floor(num)}`.length - 1);
+        let d = num / pow10;
+
+        d =
+          d >= 10
+            ? 10
+            : d >= 5
+              ? 5
+              : d >= 3
+                ? 3
+                : d >= 2
+                  ? 2
+                  : d >= 1
+                    ? 1
+                    : getDecimalRoundNum(d);
+
+        return pow10 * d;
+      }
+
       function updateScale() {
         const scaleElement = document.getElementById('custom-scale');
         if (!scaleElement) return;
@@ -95,54 +130,49 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
         const metersPerPixel =
           (40075016.686 * Math.abs(Math.cos((center.lat * Math.PI) / 180))) /
           (Math.pow(2, zoom) * 256);
-        const scaleMeters = scaleWidthPx * metersPerPixel;
-        const middleMeters = scaleMeters / 2;
+        const maxMeters = scaleWidthPx * metersPerPixel;
 
-        const endLabel =
-          scaleMeters >= 1000
-            ? `${(scaleMeters / 1000).toFixed(1)} км`
-            : `${scaleMeters.toFixed(0)} м`;
+        const distance = getRoundNum(maxMeters);
+        const ratio = distance / maxMeters;
+        const finalWidthPx = scaleWidthPx * ratio;
 
-        const middleLabel =
-          middleMeters >= 1000
-            ? `${(middleMeters / 1000).toFixed(1)} км`
-            : `${middleMeters.toFixed(0)} м`;
+        let displayValue, unit;
+        if (distance >= 1000) {
+          displayValue = (distance / 1000).toFixed(0);
+          unit = 'km';
+        } else {
+          displayValue = distance.toFixed(0);
+          unit = 'm';
+        }
 
         scaleElement.innerHTML = `
-        <div style="display: flex; width: ${scaleWidthPx}px; height: 10px; border: 1px solid #000;">
-          <div style="flex: 1; background: black;"></div>
-          <div style="flex: 1; background: white;"></div>
-        </div>
-        <div style="display: flex; justify-content: space-between; width: ${scaleWidthPx}px; font-size: 10px; white-space: nowrap;">
-          <span>0</span>
-          <span style="margin-left: -8px;">${middleLabel}</span>
-          <span>${endLabel}</span>
-        </div>
-      `;
+    <div style="display: flex; width: ${finalWidthPx}px; height: 7px; margin-bottom: 3px; border: 1px solid #000;">
+        <div style="flex: 1; background: black;"></div>
+        <div style="flex: 1; background: white;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; width: ${finalWidthPx}px; font-size: 10px; white-space: nowrap;">
+        <span>0</span>
+        <span style="position: relative; left: 12px;">${displayValue} ${unit}</span>
+    </div>
+  `;
       }
 
       function toggleScale() {
-        const shown = !!document.getElementById('custom-scale');
-        if (shown) {
+        const isCurrentlyShown = state.getVal('scale');
+
+        if (isCurrentlyShown) {
           removeScale();
+          state.set('scale', false);
           scaleButton.textContent = 'Add a scale ruler';
-          isScaleShown = false;
         } else {
           addScale();
+          state.set('scale', true);
           scaleButton.textContent = 'Delete a scale ruler';
-          isScaleShown = true;
         }
-
-        const url = new URL(window.location.href);
-        if (isScaleShown) {
-          url.searchParams.set('scale', '1');
-        } else {
-          url.searchParams.delete('scale');
-        }
-        window.history.replaceState({}, '', url.toString());
       }
 
       scaleButton.addEventListener('click', toggleScale);
+      state.set('scale', isScaleShown);
 
       if (isScaleShown) {
         addScale();
