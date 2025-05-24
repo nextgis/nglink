@@ -4,6 +4,7 @@ import NgwMap from '@nextgis/ngw-maplibre-gl';
 import Color from 'color';
 
 import { showInput, urlRuntime } from '../common';
+import { SidebarControl } from '../map-controls/scalebar-control';
 import { appBlock, dataInput } from '../pages/home';
 import { state } from '../state';
 import { toggleBlock } from '../utils/dom';
@@ -39,145 +40,6 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
     }).then(async (ngwMap_) => {
       ngwMap = ngwMap_;
       const map = ngwMap.mapAdapter.map!;
-
-      const isScaleShown = state.getVal('scale');
-
-      const scaleButton = document.createElement('button');
-      scaleButton.textContent = isScaleShown
-        ? 'Delete a scale ruler'
-        : 'Add a scale ruler';
-
-      scaleButton.style.position = 'absolute';
-      scaleButton.style.top = '157px';
-      scaleButton.style.left = '10px';
-      scaleButton.style.zIndex = '1000';
-      scaleButton.style.padding = '8px 12px';
-      scaleButton.style.fontSize = '14px';
-      scaleButton.style.backgroundColor = 'white';
-      scaleButton.style.border = '1px solid #ccc';
-      scaleButton.style.borderRadius = '4px';
-      scaleButton.style.cursor = 'pointer';
-      scaleButton.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
-
-      map.getContainer().appendChild(scaleButton);
-
-      state.subscribe((currentState) => {
-        const shown = currentState.scale?.value ?? false;
-        const scaleExists = !!document.getElementById('custom-scale');
-        if (shown && !scaleExists) {
-          addScale();
-          scaleButton.textContent = 'Delete a scale ruler';
-        } else if (!shown && scaleExists) {
-          removeScale();
-          scaleButton.textContent = 'Add a scale ruler';
-        }
-      });
-
-      function addScale() {
-        if (document.getElementById('custom-scale')) return;
-
-        const customScale = document.createElement('div');
-        customScale.id = 'custom-scale';
-        customScale.style.position = 'absolute';
-        customScale.style.bottom = '20px';
-        customScale.style.left = '10px';
-        customScale.style.zIndex = '1000';
-        document.body.appendChild(customScale);
-
-        updateScale();
-        map.on('move', updateScale);
-        map.on('zoom', updateScale);
-      }
-
-      function removeScale() {
-        document.getElementById('custom-scale')?.remove();
-        map.off('move', updateScale);
-        map.off('zoom', updateScale);
-      }
-
-      function getDecimalRoundNum(d: number): number {
-        const multiplier = Math.pow(10, Math.ceil(-Math.log(d) / Math.LN10));
-        return Math.round(d * multiplier) / multiplier;
-      }
-
-      function getRoundNum(num: number): number {
-        const pow10 = Math.pow(10, `${Math.floor(num)}`.length - 1);
-        let d = num / pow10;
-
-        d =
-          d >= 10
-            ? 10
-            : d >= 5
-              ? 5
-              : d >= 3
-                ? 3
-                : d >= 2
-                  ? 2
-                  : d >= 1
-                    ? 1
-                    : getDecimalRoundNum(d);
-
-        return pow10 * d;
-      }
-
-      function updateScale() {
-        const scaleElement = document.getElementById('custom-scale');
-        if (!scaleElement) return;
-
-        const scaleWidthPx = 100;
-        const center = map.getCenter();
-        const zoom = map.getZoom();
-        const metersPerPixel =
-          (40075016.686 * Math.abs(Math.cos((center.lat * Math.PI) / 180))) /
-          (Math.pow(2, zoom) * 256);
-        const maxMeters = scaleWidthPx * metersPerPixel;
-
-        const distance = getRoundNum(maxMeters);
-        const ratio = distance / maxMeters;
-        const finalWidthPx = scaleWidthPx * ratio;
-
-        let displayValue, unit;
-        if (distance >= 1000) {
-          displayValue = (distance / 1000).toFixed(0);
-          unit = 'km';
-        } else {
-          displayValue = distance.toFixed(0);
-          unit = 'm';
-        }
-
-        scaleElement.innerHTML = `
-    <div style="display: flex; width: ${finalWidthPx}px; height: 7px; margin-bottom: 3px; border: 1px solid #000;">
-        <div style="flex: 1; background: black;"></div>
-        <div style="flex: 1; background: white;"></div>
-    </div>
-    <div style="display: flex; justify-content: space-between; width: ${finalWidthPx}px; font-size: 10px; white-space: nowrap;">
-        <span>0</span>
-        <span style="position: relative; left: 12px;">${displayValue} ${unit}</span>
-    </div>
-  `;
-      }
-
-      function toggleScale() {
-        const isCurrentlyShown = state.getVal('scale');
-
-        if (isCurrentlyShown) {
-          removeScale();
-          state.set('scale', false);
-          scaleButton.textContent = 'Add a scale ruler';
-        } else {
-          addScale();
-          state.set('scale', true);
-          scaleButton.textContent = 'Delete a scale ruler';
-        }
-      }
-
-      scaleButton.addEventListener('click', toggleScale);
-      state.set('scale', isScaleShown);
-
-      if (isScaleShown) {
-        addScale();
-        scaleButton.textContent = 'Delete a scale ruler';
-      }
 
       const waitForIdle = () =>
         new Promise<void>((done) => {
@@ -372,6 +234,8 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
       );
 
       ngwMap.addControl(paintControl, 'top-right');
+
+      new SidebarControl({ ngwMap });
 
       resolve();
     });
