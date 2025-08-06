@@ -1,4 +1,4 @@
-FROM node:20-alpine as base
+FROM node:20-alpine AS base
 
 
 COPY package*.json ./
@@ -9,7 +9,7 @@ COPY tsconfig.json ./tsconfig.json
 RUN npm run build
 
 
-FROM node:20-alpine as front
+FROM node:20-alpine AS front
 COPY ./front/package.json ./front/package-lock.json ./
 RUN npm ci
 COPY ./front ./
@@ -19,12 +19,7 @@ RUN npm run prod
 # Start production image build
 FROM node:slim
 
-
-# We don't need the standalone Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
-
 # Install Google Chrome Stable and fonts
-# Note: this installs the necessary libs to make the browser work with Puppeteer.
 RUN apt-get update && apt-get install gnupg wget -y && \
   wget --quiet --output-document=- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-archive.gpg && \
   sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \

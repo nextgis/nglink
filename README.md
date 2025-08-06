@@ -102,6 +102,10 @@ Ensure the following environment variables are set for backend functionality:
 
 ```bash
 docker build -t harbor.nextgis.net/frontend/nglink:latest .
+docker push harbor.nextgis.net/frontend/nglink:latest
+# or
+docker buildx bake
+docker buildx bake --push
 ```
 
 ### Run Docker Container

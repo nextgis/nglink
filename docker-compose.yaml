@@ -1,0 +1,17 @@
+services:
+  nglink:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      x-bake:
+        tags:
+          - harbor.nextgis.net/frontend/nglink:${IMAGE_TAG:-latest}
+    image: harbor.nextgis.net/frontend/nglink:${IMAGE_TAG:-latest}
+    environment:
+      NGW_URL: ${NGW_URL}
+      NGW_UPLOAD_GROUP: ${NGW_UPLOAD_GROUP}
+      NGW_LOGIN: ${NGW_LOGIN}
+      NGW_PASSWORD: ${NGW_PASSWORD}
+    ports:
+      - '3000:3000'
+      - '9222:9222'
