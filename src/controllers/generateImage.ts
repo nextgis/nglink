@@ -6,6 +6,13 @@ import crypto from 'crypto';
 
 let chrome: LaunchedChrome;
 
+const MAP_MAX_WIDTH = process.env.MAP_MAX_WIDTH
+  ? parseInt(process.env.MAP_MAX_WIDTH, 10)
+  : 2048;
+const MAP_MAX_HEIGHT = process.env.MAP_MAX_HEIGHT
+  ? parseInt(process.env.MAP_MAX_HEIGHT, 10)
+  : 2048;
+
 const imageCache = new LRUCache<string, Buffer>({
   maxSize: 100 * 1024 * 1024, // 100 MB
   sizeCalculation: (buffer) => buffer.length,
@@ -46,8 +53,10 @@ function getMapRequestOptions(req: Request) {
     params.weight !== undefined ? Number(params.weight) : undefined;
   const bbox = params.bbox;
   const qmsId = params.qmsid;
-  const width = params.width ? Number(params.width) : 400;
-  const height = params.height ? Number(params.height) : 200;
+  const requestedWidth = params.width ? Number(params.width) : 400;
+  const requestedHeight = params.height ? Number(params.height) : 200;
+  const width = Math.min(requestedWidth, MAP_MAX_WIDTH);
+  const height = Math.min(requestedHeight, MAP_MAX_HEIGHT);
   const fitOffset = params.fitoffset;
   const fitPadding = params.fitpadding ? Number(params.fitpadding) : 5;
   const fitMaxZoom = params.fitmaxzoom ? Number(params.fitmaxzoom) : undefined;
@@ -109,6 +118,7 @@ export const generateImage: RequestHandler = async (req, res) => {
 
   const hash = crypto.createHash('md5');
   hash.update(url);
+  hash.update(`${width}x${height}`);
   if (geojson) hash.update(JSON.stringify(geojson));
   const key = hash.digest('hex');
 
