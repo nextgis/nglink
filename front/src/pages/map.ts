@@ -39,6 +39,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
       bounds: bbox,
     }).then(async (ngwMap_) => {
       ngwMap = ngwMap_;
+
       const map = ngwMap.mapAdapter.map!;
 
       const waitForIdle = () =>
@@ -237,6 +238,9 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
 
       new SidebarControl({ ngwMap });
 
+      // Never delete this flag because it is used in generateImage for workaround
+      // to make sure that ngwMap is initialized before making screenshot.
+      window.mapLoaded = true;
       resolve();
     });
 
@@ -258,6 +262,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
 declare global {
   interface Window {
     showMap: typeof showMap;
+    mapLoaded?: boolean;
   }
 }
 window.showMap = showMap;

@@ -6,6 +6,10 @@ import crypto from 'crypto';
 
 let chrome: LaunchedChrome;
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 const MAP_MAX_WIDTH = process.env.MAP_MAX_WIDTH
   ? parseInt(process.env.MAP_MAX_WIDTH, 10)
   : 2048;
@@ -167,20 +171,57 @@ export const generateImage: RequestHandler = async (req, res) => {
         awaitPromise: true,
       });
     }
-    await new Promise<void>((resolve) => {
-      clientTab.Page.on('lifecycleEvent', (event) => {
-        if (event.name === 'networkAlmostIdle') {
-          resolve();
-        }
-      });
-    });
     const {
       root: { nodeId: docId },
     } = await DOM.getDocument();
-    const { nodeId: ctrlId } = await DOM.querySelector({
-      selector: '.maplibregl-control-container',
-      nodeId: docId,
+
+    let ctrlId: number | null = null;
+
+    while (!ctrlId) {
+      const [ctrlRes, errRes] = await Promise.all([
+        DOM.querySelector({
+          selector: '.maplibregl-control-container',
+          nodeId: docId,
+        }),
+        DOM.querySelector({
+          selector: '#error-block',
+          nodeId: docId,
+        }),
+      ]);
+
+      ctrlId = ctrlRes.nodeId;
+      const errorNodeId = errRes.nodeId;
+
+      if (errorNodeId) {
+        const { attributes } = await DOM.getAttributes({ nodeId: errorNodeId });
+        const idx = attributes.findIndex((attrName) => attrName === 'class');
+        const classList = idx >= 0 ? attributes[idx + 1]!.split(/\s+/) : [];
+
+        if (!classList.includes('hidden')) {
+          throw new Error('Map rendering failed. Check your input data.');
+        }
+      }
+
+      if (!ctrlId) {
+        await sleep(100);
+      }
+    }
+    await Runtime.evaluate({
+      expression: `
+        (async () => {
+          await new Promise(resolve => {
+            const interval = setInterval(() => {
+              if (window.mapLoaded) {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 100);
+          });
+        })();
+      `,
+      awaitPromise: true,
     });
+
     if (ctrlId) await DOM.removeNode({ nodeId: ctrlId });
 
     const { data } = await Page.captureScreenshot({
@@ -197,13 +238,108 @@ export const generateImage: RequestHandler = async (req, res) => {
     return res.status(200).send(buffer);
   } catch (error) {
     console.error('Error generating image:', error);
-    res.status(500).json({ error: 'Failed to generate image.' });
+
+    try {
+      if (clientTab) {
+        const { Page } = clientTab;
+        const url = generateErrorPage(error, width, height);
+        await Page.navigate({ url });
+        await Page.loadEventFired();
+
+        const { data: errData } = await Page.captureScreenshot({
+          format: 'png',
+          fromSurface: true,
+        });
+        const errBuffer = Buffer.from(errData, 'base64');
+
+        res.setHeader('Content-Type', 'image/png');
+        return res.status(500).send(errBuffer);
+      }
+    } catch (renderErr) {
+      console.error('Error rendering error image:', renderErr);
+    }
+
+    res
+      .status(500)
+      .type('text/plain')
+      .send(`Error generating image: ${error.message}`);
   } finally {
     if (clientTab) await clientTab.close();
     if (clientRoot) await clientRoot.close();
   }
 };
+function generateErrorPage(
+  error: Error,
+  width: number,
+  height: number,
+): string {
+  const message = error.message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-process.on('exit', async () => {
-  if (chrome) await chrome.kill();
-});
+  const skullSvg = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+      <text x="0" y="24" font-size="16" fill="#ddd">💀</text>
+    </svg>
+  `);
+  const exclamSvg = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+      <text x="0" y="24" font-size="16" fill="#ddd">⚠️</text>
+    </svg>
+  `);
+
+  const html = `
+    <html>
+      <head>
+        <meta charset="utf-8"/>
+        <style>
+          html, body {
+            margin: 0;
+            width: ${width}px;
+            height: ${height}px;
+            overflow: hidden;
+          }
+          body {
+            position: relative;
+            background: #fff;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image:
+              url("data:image/svg+xml,${skullSvg}"),
+              url("data:image/svg+xml,${exclamSvg}");
+            background-repeat: repeat, repeat;
+            background-size: 64px 64px;
+            background-position: 0 0, 32px 32px;
+            opacity: 0.2;
+            z-index: 0;
+          }
+
+          .err {
+            position: relative;
+            z-index: 1;
+            color: #c00;
+            font-size: 1.5rem;
+            line-height: 1.4;
+            text-align: center;
+            max-width: 80%;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="err">${message}</div>
+      </body>
+    </html>
+  `;
+
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+}
