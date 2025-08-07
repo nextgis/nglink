@@ -8,6 +8,7 @@ import { isUrl } from '../utils/isUrl';
 import { toGeoJson } from '../utils/toGeoJson';
 
 import { GeoJSON } from 'geojson';
+import { env } from 'bun';
 
 const detectFormat: RequestHandler = async (req: Request, res) => {
   let { u } = req.query;
@@ -35,22 +36,46 @@ const detectFormat: RequestHandler = async (req: Request, res) => {
 
   if (isUrl(u)) {
     try {
-      const refUrl = new URL(req.get('Referrer'));
+      const referer = req.get('Referer');
+      if (!referer) {
+        return error('Referrer header is not set');
+      }
+      const refUrl = new URL(referer);
       const dataUrl = new URL(u);
       if (refUrl.hostname === dataUrl.hostname) {
         return error("You can't refer to yourself");
       }
-      const getReq = await axios(u);
-      return makeResp(toGeoJson(getReq.data));
+
+      const response = await fetch(u, {
+        headers: { Referer: referer },
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Fetch failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const body = contentType.includes('application/json')
+        ? await response.json()
+        : await response.text();
+
+      return makeResp(toGeoJson(body as string));
     } catch (er) {
       return error(er);
     }
   } else if (u.length === 8) {
+    const login = env.NGW_LOGIN;
+    const password = env.NGW_PASSWORD;
+    if (!login || !password) {
+      return error('NGW credentials are not set');
+    }
+
     const connector = new NgwConnector({
-      baseUrl: process.env.NGW_URL,
+      baseUrl: env.NGW_URL,
       auth: {
-        login: process.env.NGW_LOGIN,
-        password: process.env.NGW_PASSWORD,
+        login,
+        password,
       },
     });
     return connector

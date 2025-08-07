@@ -3,11 +3,23 @@ import { Request, RequestHandler } from 'express';
 import NgwUploader from '@nextgis/ngw-uploader';
 
 import { handleError } from '../utils/handleError';
+import { env } from 'bun';
 
 export const createLink: RequestHandler = async (req: Request, res) => {
+  const {
+    NGW_LOGIN: login,
+    NGW_PASSWORD: password,
+    NGW_URL: baseUrl,
+    NGW_UPLOAD_GROUP: uploadGroup,
+  } = env;
+
+  if (!login || !password || !baseUrl || !uploadGroup) {
+    return handleError(res, 'NGW configuration is not complete');
+  }
+
   const uploader = new NgwUploader({
-    baseUrl: process.env.NGW_URL,
-    auth: { login: process.env.NGW_LOGIN, password: process.env.NGW_PASSWORD },
+    baseUrl,
+    auth: { login, password },
   });
 
   const { body } = req;
@@ -17,7 +29,7 @@ export const createLink: RequestHandler = async (req: Request, res) => {
     .uploadVector(
       { file, name: name },
       {
-        parentId: Number(process.env.NGW_UPLOAD_GROUP),
+        parentId: Number(uploadGroup),
         keyname: name,
         paint: { color: '#00A', weight: 1, opacity: 1 },
         addTimestampToName: true,

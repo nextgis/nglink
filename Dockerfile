@@ -1,25 +1,22 @@
-FROM node:20-alpine AS base
+FROM oven/bun:1 AS builder
+WORKDIR /app
 
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+COPY bunfig.toml tsconfig.json ./
+COPY common/ common/
+COPY front/ front/
+COPY server/ server/
 
-COPY src ./src
-COPY tsconfig.json ./tsconfig.json
-RUN npm run build
+RUN bun install
+
+WORKDIR /app/front
+RUN bun run prod
 
 
-FROM node:20-alpine AS front
-COPY ./front/package.json ./front/package-lock.json ./
-RUN npm ci
-COPY ./front ./
-COPY ./common ../common
-RUN npm run prod
+FROM oven/bun:1-slim
 
-# Start production image build
-FROM node:slim
 
-# Install Google Chrome Stable and fonts
 RUN apt-get update && apt-get install gnupg wget -y && \
   wget --quiet --output-document=- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-archive.gpg && \
   sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
@@ -27,14 +24,14 @@ RUN apt-get update && apt-get install gnupg wget -y && \
   apt-get install google-chrome-stable -y --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# Copy node modules and build directory
-COPY --from=base ./node_modules ./node_modules
-COPY --from=base /dist /dist
+WORKDIR /app
 
-# Copy static files
-COPY --from=front ./dist ./front/dist
+COPY --from=builder /app/front/dist ./front/dist
 
+COPY --from=builder /app/server ./server
 
-# Expose port 3000
+WORKDIR /app/server
+RUN bun install --production
+
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["bun", "src/server.ts"]

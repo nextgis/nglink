@@ -17,11 +17,7 @@ function logResponseTime(req: Request, res: Response, next: NextFunction) {
     const message = `
     ${req.method} ${res.statusCode} ${elapsedTimeInMs}ms\t${req.path}
     `;
-    logger.log({
-      level: 'debug',
-      message,
-      consoleLoggerOptions: { label: 'API' },
-    });
+    logger.log('debug', message);
   });
 
   next();
@@ -40,7 +36,7 @@ app.use(compression());
 
 app.use(
   '/',
-  express.static(path.join(__dirname, '../front/dist'), {
+  express.static(path.join(__dirname, '../../front/dist'), {
     maxAge: 31557600000,
   }),
 );

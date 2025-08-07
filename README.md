@@ -2,6 +2,43 @@
 
 Display GeoJSON from URL Parameters
 
+## Prerequisites
+
+You need [Bun](https://bun.sh/) installed.
+
+### Install Bun
+
+#### macOS (Homebrew)
+
+```bash
+brew tap oven-sh/bun
+brew install bun
+```
+
+#### Linux (official script)
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+#### Windows (PowerShell)
+
+```powershell
+powershell -c "irm bun.sh/install.ps1 | iex"
+```
+
+Or via Scoop:
+
+```powershell
+scoop install bun
+```
+
+### Verify installation
+
+```bash
+bun --version
+```
+
 ## Installation
 
 ### Clone the Repository
@@ -14,23 +51,36 @@ cd nglink
 ### Install Dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### Start Development Server
 
 ```bash
-npm run dev
+bun run dev:server
 ```
+
+Runs the backend at `http://localhost:3000`.
 
 ### Frontend Setup
 
+Production Build
+
+```bash
+bun run prod
+```
+
+Development build
+
+```bash
+bun run dev:front
+```
+
+Builds and serves the frontend in watch mode.
+
 ```bash
 cd ./front
-npm i
-npm run prod
-# or for development
-npm run watch
+bun run watch
 ```
 
 ## Usage

@@ -5,18 +5,22 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
+      "type": "bun",
       "request": "launch",
-      "name": "Run npm dev",
-      "runtimeExecutable": "npm",
+      "name": "Debug Bun Script",
+      "program": "${workspaceFolder}/node_modules/.bin/bun",
+      "runtime": "bun",
       "runtimeArgs": [
         "run",
-        "dev"
+        "--inspect-brk",
+        "dev:server"
       ],
-      "env": {
-        "NODE_ENV": "development"
-      },
-      "skipFiles": ["<node_internals>/**"]
-    }
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "stopOnEntry": false,
+      "env": {},
+      "strictEnv": false,
+      "watchMode": false,
+    },
   ]
 }

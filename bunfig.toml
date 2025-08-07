@@ -1,0 +1,5 @@
+[install]
+peer = true
+
+[install.scopes]
+"@nextgis" = "https://registry.npmjs.org"

@@ -1,22 +1,30 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "target": "es6",
-    "noImplicitAny": true,
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "node_modules/*"
-      ]
-    },
-    "resolveJsonModule": true
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "experimentalDecorators": true,
+    "strict": true,
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "types": [
+      "bun-types",
+    ],
+    "baseUrl": "."
   },
   "include": [
-    "src/**/*",
-    "common/**/*.ts",
+    "server/**/*.ts",
+    "front/**/*.ts",
+    "common/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

@@ -3,18 +3,23 @@ import CDP from 'chrome-remote-interface';
 import { launch, LaunchedChrome } from 'chrome-launcher';
 import { LRUCache } from 'lru-cache';
 import crypto from 'crypto';
+import { env } from 'bun';
 
-let chrome: LaunchedChrome;
+let chrome: LaunchedChrome | undefined = undefined;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const MAP_MAX_WIDTH = process.env.MAP_MAX_WIDTH
-  ? parseInt(process.env.MAP_MAX_WIDTH, 10)
+const timeoutMs = env.IMAGE_TIMEOUT_MS
+  ? parseInt(env.IMAGE_TIMEOUT_MS, 10)
+  : 10000; // 10 seconds
+
+const MAP_MAX_WIDTH = env.MAP_MAX_WIDTH
+  ? parseInt(env.MAP_MAX_WIDTH, 10)
   : 2048;
-const MAP_MAX_HEIGHT = process.env.MAP_MAX_HEIGHT
-  ? parseInt(process.env.MAP_MAX_HEIGHT, 10)
+const MAP_MAX_HEIGHT = env.MAP_MAX_HEIGHT
+  ? parseInt(env.MAP_MAX_HEIGHT, 10)
   : 2048;
 
 const imageCache = new LRUCache<string, Buffer>({
@@ -23,7 +28,17 @@ const imageCache = new LRUCache<string, Buffer>({
 });
 
 async function startChrome() {
+  const port = Number(env.CHROME_DEBUG_PORT ?? 9222);
+
   if (!chrome) {
+    try {
+      await CDP({ host: '127.0.0.1', port });
+      console.log(`🔗 Reusing existing Chrome on port ${port}`);
+      return { port } as LaunchedChrome;
+    } catch {
+      // pass
+    }
+
     chrome = await launch({
       port: 9222,
       ignoreDefaultFlags: true,
@@ -134,15 +149,15 @@ export const generateImage: RequestHandler = async (req, res) => {
   }
 
   try {
-    await startChrome();
+    const { port } = await startChrome();
 
-    clientRoot = await CDP({ host: '127.0.0.1', port: chrome.port });
+    clientRoot = await CDP({ host: '127.0.0.1', port });
     const { Target } = clientRoot;
 
     const { targetId } = await Target.createTarget({ url: 'about:blank' });
     clientTab = await CDP({
       host: '127.0.0.1',
-      port: chrome.port,
+      port,
       target: targetId,
     });
     const { Page, Runtime, Emulation, DOM } = clientTab;
@@ -157,78 +172,22 @@ export const generateImage: RequestHandler = async (req, res) => {
       mobile: false,
     });
 
-    await Page.navigate({ url });
-    await Page.loadEventFired();
+    const timeoutPromise = new Promise<Buffer>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              `Timeout: screenshot not received within ${timeoutMs} ms`,
+            ),
+          ),
+        timeoutMs,
+      ),
+    );
 
-    if (geojson) {
-      await Runtime.evaluate({
-        expression: `
-          (async () => {
-            // @ts-ignore
-            await window.showMap(${JSON.stringify(geojson)});
-          })();
-        `,
-        awaitPromise: true,
-      });
-    }
-    const {
-      root: { nodeId: docId },
-    } = await DOM.getDocument();
-
-    let ctrlId: number | null = null;
-
-    while (!ctrlId) {
-      const [ctrlRes, errRes] = await Promise.all([
-        DOM.querySelector({
-          selector: '.maplibregl-control-container',
-          nodeId: docId,
-        }),
-        DOM.querySelector({
-          selector: '#error-block',
-          nodeId: docId,
-        }),
-      ]);
-
-      ctrlId = ctrlRes.nodeId;
-      const errorNodeId = errRes.nodeId;
-
-      if (errorNodeId) {
-        const { attributes } = await DOM.getAttributes({ nodeId: errorNodeId });
-        const idx = attributes.findIndex((attrName) => attrName === 'class');
-        const classList = idx >= 0 ? attributes[idx + 1]!.split(/\s+/) : [];
-
-        if (!classList.includes('hidden')) {
-          throw new Error('Map rendering failed. Check your input data.');
-        }
-      }
-
-      if (!ctrlId) {
-        await sleep(100);
-      }
-    }
-    await Runtime.evaluate({
-      expression: `
-        (async () => {
-          await new Promise(resolve => {
-            const interval = setInterval(() => {
-              if (window.mapLoaded) {
-                clearInterval(interval);
-                resolve();
-              }
-            }, 100);
-          });
-        })();
-      `,
-      awaitPromise: true,
-    });
-
-    if (ctrlId) await DOM.removeNode({ nodeId: ctrlId });
-
-    const { data } = await Page.captureScreenshot({
-      format: 'png',
-      fromSurface: true,
-    });
-    const buffer = Buffer.from(data, 'base64');
+    const buffer = await Promise.race([
+      executeUrl({ clientTab, url, geojson }),
+      timeoutPromise,
+    ]);
 
     imageCache.set(key, buffer);
 
@@ -236,7 +195,8 @@ export const generateImage: RequestHandler = async (req, res) => {
 
     res.setHeader('Content-Type', 'image/png');
     return res.status(200).send(buffer);
-  } catch (error) {
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
     console.error('Error generating image:', error);
 
     try {
@@ -268,6 +228,91 @@ export const generateImage: RequestHandler = async (req, res) => {
     if (clientRoot) await clientRoot.close();
   }
 };
+
+async function executeUrl({
+  url,
+  clientTab,
+  geojson,
+}: {
+  url: string;
+  clientTab: CDP.Client;
+  geojson?: any;
+}): Promise<Buffer> {
+  const { Page, Runtime, DOM } = clientTab;
+  await Page.navigate({ url });
+  await Page.loadEventFired();
+
+  if (geojson) {
+    await Runtime.evaluate({
+      expression: `
+          (async () => {
+            // @ts-ignore
+            await window.showMap(${JSON.stringify(geojson)});
+          })();
+        `,
+      awaitPromise: true,
+    });
+  }
+  const {
+    root: { nodeId: docId },
+  } = await DOM.getDocument();
+
+  let ctrlId: number | null = null;
+
+  while (!ctrlId) {
+    const [ctrlRes, errRes] = await Promise.all([
+      DOM.querySelector({
+        selector: '.maplibregl-control-container',
+        nodeId: docId,
+      }),
+      DOM.querySelector({
+        selector: '#error-block',
+        nodeId: docId,
+      }),
+    ]);
+
+    ctrlId = ctrlRes.nodeId;
+    const errorNodeId = errRes.nodeId;
+
+    if (errorNodeId) {
+      const { attributes } = await DOM.getAttributes({ nodeId: errorNodeId });
+      const idx = attributes.findIndex((attrName) => attrName === 'class');
+      const classList = idx >= 0 ? attributes[idx + 1]!.split(/\s+/) : [];
+
+      if (!classList.includes('hidden')) {
+        throw new Error('Map rendering failed. Check your input data.');
+      }
+    }
+
+    if (!ctrlId) {
+      await sleep(100);
+    }
+  }
+  await Runtime.evaluate({
+    expression: `
+        (async () => {
+          await new Promise(resolve => {
+            const interval = setInterval(() => {
+              if (window.mapLoaded) {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 100);
+          });
+        })();
+      `,
+    awaitPromise: true,
+  });
+
+  if (ctrlId) await DOM.removeNode({ nodeId: ctrlId });
+
+  const { data } = await Page.captureScreenshot({
+    format: 'png',
+    fromSurface: true,
+  });
+  return Buffer.from(data, 'base64');
+}
+
 function generateErrorPage(
   error: Error,
   width: number,
