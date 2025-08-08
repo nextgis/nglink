@@ -3,9 +3,9 @@
   "private": "true",
   "version": "6.0.0",
   "scripts": {
-    "start": "bun --watch run build.ts",
+    "start": "bun run build.ts -- --watch",
     "build": "bun run build.ts",
-    "watch": "bun --watch run build.ts",
+    "watch": "bun --watch run build.ts -- --watch",
     "dev": "bun run build.ts",
     "prod": "NODE_ENV=production bun run build.ts"
   },
@@ -21,6 +21,8 @@
     "maplibre-gl": "^5.6.2"
   },
   "devDependencies": {
-    "@types/color": "^4.2.0"
+    "@types/color": "^4.2.0",
+    "chokidar": "^4.0.3",
+    "typescript": "^5.9.2"
   }
 }

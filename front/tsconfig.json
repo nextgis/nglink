@@ -7,7 +7,6 @@
       "dom.iterable",
       "esnext"
     ],
-    "rootDir": ".",
     "outDir": "dist"
   },
   "include": [
