@@ -6,16 +6,22 @@ import crypto from 'crypto';
 import { env } from 'bun';
 
 let chrome: LaunchedChrome | undefined = undefined;
+let rootClient: CDP.Client | undefined;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const timeoutMs = env.IMAGE_TIMEOUT_MS
-  ? parseInt(env.IMAGE_TIMEOUT_MS, 10)
+const POOL_SIZE = Math.max(1, Number(env.RENDER_POOL_SIZE ?? 4));
+
+const SAFETY_CAP_MS = env.RENDER_SAFETY_CAP_MS
+  ? parseInt(env.RENDER_SAFETY_CAP_MS, 10)
   : 10000; // 10 seconds
 
-const MAP_MAX_WIDTH = env.MAP_MAX_WIDTH
+
+
+
+  const MAP_MAX_WIDTH = env.MAP_MAX_WIDTH
   ? parseInt(env.MAP_MAX_WIDTH, 10)
   : 2048;
 const MAP_MAX_HEIGHT = env.MAP_MAX_HEIGHT
@@ -27,32 +33,71 @@ const imageCache = new LRUCache<string, Buffer>({
   sizeCalculation: (buffer) => buffer.length,
 });
 
-async function startChrome() {
-  const port = Number(env.CHROME_DEBUG_PORT ?? 9222);
+const CHROME_HOST = '127.0.0.1';
+const PORT = Number(env.CHROME_DEBUG_PORT ?? 9222);
 
+class Semaphore {
+  private max: number;
+  private active = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(max: number) {
+    this.max = max;
+  }
+
+  async acquire(): Promise<() => void> {
+    if (this.active < this.max) {
+      this.active++;
+      return () => this.release();
+    }
+    await new Promise<void>((resolve) => this.queue.push(resolve));
+    this.active++;
+    return () => this.release();
+  }
+
+  private release() {
+    this.active--;
+    const next = this.queue.shift();
+    if (next) next();
+  }
+}
+const renderGate = new Semaphore(POOL_SIZE);
+
+async function startChrome() {
   if (!chrome) {
     try {
-      await CDP({ host: '127.0.0.1', port });
-      console.log(`🔗 Reusing existing Chrome on port ${port}`);
-      return { port } as LaunchedChrome;
+      await CDP({ host: CHROME_HOST, port: PORT });
+      console.log(`🔗 Reusing existing Chrome on port ${PORT}`);
     } catch {
-      // pass
+      chrome = await launch({
+        port: PORT,
+        ignoreDefaultFlags: true,
+        chromeFlags: [
+          '--headless=new',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-extensions',
+          '--mute-audio',
+          '--hide-scrollbars',
+          '--enable-precise-memory-info',
+        ],
+      });
+      console.log(`💻 Chrome started on port ${chrome.port}`);
+      const kill = async () => {
+        try {
+          await chrome?.kill();
+        } catch {}
+        process.exit(0);
+      };
+      process.on('SIGINT', kill);
+      process.on('SIGTERM', kill);
     }
-
-    chrome = await launch({
-      port: 9222,
-      ignoreDefaultFlags: true,
-      chromeFlags: [
-        '--headless',
-        '--disable-gpu',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-extensions',
-      ],
-    });
-    console.log(`💻 Chrome started on port ${chrome.port}`);
   }
-  return chrome;
+  if (!rootClient) {
+    rootClient = await CDP({ host: CHROME_HOST, port: PORT });
+    await rootClient.Target.setDiscoverTargets({ discover: false });
+  }
 }
 
 function getMapRequestOptions(req: Request) {
@@ -123,8 +168,8 @@ function getMapRequestOptions(req: Request) {
 }
 
 export const generateImage: RequestHandler = async (req, res) => {
-  let clientRoot: CDP.Client | undefined;
   let clientTab: CDP.Client | undefined;
+  let targetId: string | undefined;
 
   const { u, url, width, height, geojson } = getMapRequestOptions(req);
 
@@ -147,19 +192,15 @@ export const generateImage: RequestHandler = async (req, res) => {
     res.setHeader('Content-Type', 'image/png');
     return res.status(200).send(cached);
   }
+  const release = await renderGate.acquire();
 
   try {
-    const { port } = await startChrome();
+    await startChrome();
+    const { Target } = rootClient!;
 
-    clientRoot = await CDP({ host: '127.0.0.1', port });
-    const { Target } = clientRoot;
+    ({ targetId } = await Target.createTarget({ url: 'about:blank' }));
 
-    const { targetId } = await Target.createTarget({ url: 'about:blank' });
-    clientTab = await CDP({
-      host: '127.0.0.1',
-      port,
-      target: targetId,
-    });
+    clientTab = await CDP({ host: CHROME_HOST, port: PORT, target: targetId });
     const { Page, Runtime, Emulation, DOM } = clientTab;
 
     await Promise.all([Page.enable(), Runtime.enable(), DOM.enable()]);
@@ -172,27 +213,13 @@ export const generateImage: RequestHandler = async (req, res) => {
       mobile: false,
     });
 
-    const timeoutPromise = new Promise<Buffer>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              `Timeout: screenshot not received within ${timeoutMs} ms`,
-            ),
-          ),
-        timeoutMs,
-      ),
-    );
-
-    const buffer = await Promise.race([
-      executeUrl({ clientTab, url, geojson }),
-      timeoutPromise,
-    ]);
+    const buffer = await renderBuffer({
+      clientTab,
+      url,
+      geojson,
+    });
 
     imageCache.set(key, buffer);
-
-    await Target.closeTarget({ targetId });
-
     res.setHeader('Content-Type', 'image/png');
     return res.status(200).send(buffer);
   } catch (err) {
@@ -205,8 +232,7 @@ export const generateImage: RequestHandler = async (req, res) => {
         const url = generateErrorPage(error, width, height);
         await Page.navigate({ url });
         await Page.loadEventFired();
-
-        const { data: errData } = await Page.captureScreenshot({
+        const { data: errData } = await clientTab.Page.captureScreenshot({
           format: 'png',
           fromSurface: true,
         });
@@ -218,18 +244,57 @@ export const generateImage: RequestHandler = async (req, res) => {
     } catch (renderErr) {
       console.error('Error rendering error image:', renderErr);
     }
-
-    res
+    return res
       .status(500)
       .type('text/plain')
       .send(`Error generating image: ${error.message}`);
   } finally {
-    if (clientTab) await clientTab.close();
-    if (clientRoot) await clientRoot.close();
+    try {
+      if (clientTab) {
+        await clientTab.close();
+      }
+    } catch {
+      // pass
+    }
+    try {
+      if (rootClient && targetId) {
+        await rootClient.Target.closeTarget({ targetId });
+      }
+    } catch {
+      // pass
+    }
+    release();
   }
 };
 
-async function executeUrl({
+async function renderBuffer({
+  url,
+  clientTab,
+  geojson,
+}: {
+  url: string;
+  clientTab: CDP.Client;
+  geojson?: any;
+}): Promise<Buffer> {
+  const timeoutPromise = new Promise<Buffer>((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            `Timeout: screenshot not received within ${SAFETY_CAP_MS} ms`,
+          ),
+        ),
+      SAFETY_CAP_MS,
+    ),
+  );
+
+  return await Promise.race([
+    getBuffer({ clientTab, url, geojson }),
+    timeoutPromise,
+  ]);
+}
+
+async function getBuffer({
   url,
   clientTab,
   geojson,
