@@ -12,16 +12,16 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const BROWSER_CACHE_MB = Number(env.BROWSER_CACHE_MB ?? 100);
+const BROWSER_CACHE_BYTES = BROWSER_CACHE_MB * 1024 * 1024;
+
 const POOL_SIZE = Math.max(1, Number(env.RENDER_POOL_SIZE ?? 4));
 
 const SAFETY_CAP_MS = env.RENDER_SAFETY_CAP_MS
   ? parseInt(env.RENDER_SAFETY_CAP_MS, 10)
   : 10000; // 10 seconds
 
-
-
-
-  const MAP_MAX_WIDTH = env.MAP_MAX_WIDTH
+const MAP_MAX_WIDTH = env.MAP_MAX_WIDTH
   ? parseInt(env.MAP_MAX_WIDTH, 10)
   : 2048;
 const MAP_MAX_HEIGHT = env.MAP_MAX_HEIGHT
@@ -81,6 +81,8 @@ async function startChrome() {
           '--mute-audio',
           '--hide-scrollbars',
           '--enable-precise-memory-info',
+          `--disk-cache-size=${BROWSER_CACHE_BYTES}`,
+          '--aggressive-cache-discard',
         ],
       });
       console.log(`💻 Chrome started on port ${chrome.port}`);
