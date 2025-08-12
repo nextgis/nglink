@@ -36,7 +36,7 @@ export const state = new StateManager<MapConfig>({
     urlRuntime: false,
   },
   weight: {
-    value: '',
+    value: undefined,
     urlName: 'weight',
     paintName: 'weight',
     forShare: 'style',
