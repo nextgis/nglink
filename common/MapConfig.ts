@@ -5,7 +5,7 @@ export interface MapConfig {
   color?: string;
   strokeOpacity?: number;
   strokeColor?: string;
-  weight?: string;
+  weight?: number;
   url?: string;
   qmsId?: number;
   bbox?: LngLatBoundsArray;

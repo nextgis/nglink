@@ -16,6 +16,8 @@ import type { PathPaint } from '@nextgis/paint';
 import type { FitOptions } from '@nextgis/webmap';
 import type { GeoJSON } from 'geojson';
 
+import './map.css'
+
 export const mapBlock = document.getElementById('map') as HTMLElement;
 
 export let ngwMap: NgwMap | undefined;
@@ -140,12 +142,16 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
             <div class="color-control">
                 <input class="fill-color-select" type="color" />
                 <input class="alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
-                <label for="fill-color-select">Fill color</label>
+                <label class="fill-color-label" for="fill-color-select">Fill color</label>
             </div>
             <div class="color-control">
                 <input class="stroke-color-select" type="color" />
                 <input class="stroke-alpha-select" type="range" min="0" max="1" step="0.01" value="1" />
-                <label for="stroke-color-select">Stroke color</label>
+                <label class="stroke-color-label" for="stroke-color-select">Stroke color</label>
+            </div>
+            <div class="weight">
+                <input class="weight-select" type="number" min="0" max"10" step="0" value="1" />
+                <label class="weight-label" for="weight-select">Weight</label>
             </div>
         </div>
           `;
@@ -160,16 +166,6 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
               container.style.height = '35px';
               container.style.cursor = 'pointer';
               container.style.borderRadius = '4px';
-            });
-
-            const labels = elem.querySelectorAll(
-              'label',
-            ) as NodeListOf<HTMLLabelElement>;
-            labels.forEach((label) => {
-              label.style.fontSize = '16px';
-              label.style.fontWeight = 'bold';
-              label.style.cursor = 'pointer';
-              label.style.marginLeft = '10px';
             });
 
             const colorInputs = elem.querySelectorAll(
@@ -213,9 +209,17 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
               '.stroke-alpha-select',
             ) as HTMLInputElement;
             strokeAlphaInput.value = String(state.getVal('strokeOpacity'));
+            
+            const weightInput = elem.querySelector(
+              '.weight-select',
+            ) as HTMLInputElement;
+            strokeAlphaInput.value = String(state.getVal('weight'));
 
             fillColorSelect.oninput = () => {
               state.set('color', fillColorSelect.value);
+            };
+            weightInput.oninput = () => {
+              state.set('weight', Number(weightInput.value));
             };
             alphaInput.oninput = () => {
               state.set('opacity', Number(alphaInput.value));
