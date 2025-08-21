@@ -150,7 +150,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
                 <label class="stroke-color-label" for="stroke-color-select">Stroke color</label>
             </div>
             <div class="weight">
-                <input class="weight-select" type="number" min="0" max"10" step="0" value="1" />
+                <input class="weight-select" type="number" min="0" max="10" step="0" value="1" />
                 <label class="weight-label" for="weight-select">Weight</label>
             </div>
         </div>
@@ -213,7 +213,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
             const weightInput = elem.querySelector(
               '.weight-select',
             ) as HTMLInputElement;
-            strokeAlphaInput.value = String(state.getVal('weight'));
+            weightInput.value = String(state.getVal('weight'));
 
             fillColorSelect.oninput = () => {
               state.set('color', fillColorSelect.value);
