@@ -13,4 +13,5 @@ export interface MapConfig {
   fitPadding?: number;
   fitMaxZoom?: number;
   scale?: boolean;
+  heatmap?: boolean;
 }

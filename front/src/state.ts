@@ -92,4 +92,12 @@ export const state = new StateManager<MapConfig>({
     toString: (val) => (val ? '1' : '0'),
     urlRuntime: true,
   },
+  heatmap: {
+    value: false,
+    urlName: 'heatmap',
+    forShare: 'map',
+    parseStr: (val) => val === '1' || val === 'true',
+    toString: (val) => (val ? '1' : '0'),
+    urlRuntime: true,
+  },
 });
