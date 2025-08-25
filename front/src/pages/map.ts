@@ -34,6 +34,8 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
 
     const bbox = state.getVal('bbox');
 
+    const heatmap = state.getVal('heatmap');
+
     NgwMap.create({
       target: mapBlock,
       qmsId,
@@ -86,6 +88,66 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
         },
       });
 
+      function hasPointData(geojson: GeoJSON): boolean {
+        if (geojson.type === 'FeatureCollection') {
+          return geojson.features.some(feature => {
+            const geomType = feature.geometry.type;
+            return geomType === 'Point' || geomType === 'MultiPoint';
+          });
+        } else if (geojson.type === 'Feature') {
+          const geomType = geojson.geometry.type;
+          return geomType === 'Point' || geomType === 'MultiPoint';
+        } else if (geojson.type === 'Point' || geojson.type === 'MultiPoint') {
+          return true;
+        }
+        return false;
+      }
+
+      const isPointData = hasPointData(geojson);
+
+      if (heatmap && isPointData) {
+        await waitForIdle();
+        map.addSource('heatmap-source', {
+          type: 'geojson',
+          data: geojson
+        });
+
+        map.addLayer({
+          id: 'heatmap-layer',
+          type: 'heatmap',
+          source: 'heatmap-source',
+          paint: {
+            'heatmap-weight': 1,
+            'heatmap-intensity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 1,
+              9, 3
+            ],
+            'heatmap-color': [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0, 'rgba(33,102,172,0)',
+              0.2, 'rgb(103,169,207)',
+              0.4, 'rgb(209,229,240)',
+              0.6, 'rgb(253,219,199)',
+              0.8, 'rgb(239,138,98)',
+              1, 'rgb(178,24,43)'
+            ],
+            'heatmap-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 2,
+              9, 20
+            ],
+            'heatmap-opacity': opacityInit
+          }
+        });
+      } else {
+
       const layer = await ngwMap.addGeoJsonLayer({
         data: JSON.parse(JSON.stringify(geojson)),
         id: 'layer',
@@ -131,6 +193,7 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
 
         ngwMap?.fitLayer(layer, fitOptions);
       }
+    }
       await waitForIdle();
 
       const paintControl = ngwMap.createControl(
@@ -257,7 +320,11 @@ export function showMap(geojson: GeoJSON, url?: string): Promise<void> {
         }
       }
 
-      ngwMap?.updateLayerPaint('layer', paint);
+      if (heatmap && paint.fillOpacity !== undefined) {
+        ngwMap?.mapAdapter.map?.setPaintProperty('heatmap-layer', 'heatmap-opacity', paint.fillOpacity);
+      } else {    
+        ngwMap?.updateLayerPaint('layer', paint);
+      }
     });
   });
 }
